@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+    <title><%= ui.title %></title>
+    <link rel="stylesheet" type="text/css" href="/css/bootstrap.min.css">
+    <link rel="stylesheet" type="text/css" href="/css/styles.css">
+  </head>
+  <body class="bg-light h-100 d-flex flex-column">
+     <div class="container access-points-container">
+       <h1 class="text-right mt-2"><a href="/" style="color: <%= ui.title_color %>"><%= ui.title %></a></h1>
+       <h3 class="text-left mt-2">
+        Configuration status:
+        <span class="<%= configuration_status.class %>">
+          <%= configuration_status.value%>
+          <span style="bottom: 8px;right: 5px;position: relative" title="<%= configuration_status.title %>">
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24"><path d="M11 15h2v2h-2v-2zm0-8h2v6h-2V7zm.99-5C6.47 2 2 6.48 2 12s4.47 10 9.99 10C17.52 22 22 17.52 22 12S17.52 2 11.99 2zM12 20c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8z"/></svg>
+          </span>
+        </span>
+       </h3>
+       Choose a network from following list:
+       <div class="my-3 p-3 bg-white rounded shadow-sm">
+         <table class="table table-hover access-points-table">
+             <thead>
+                <tr>
+                  <th scope="col">SSID</th>
+                  <th scope="col">Security</th>
+                  <th scope="col">Signal Strength</th>
+                </tr>
+             </thead>
+             <tbody>
+           </tbody>
+         </table>
+       </div>
+
+       <a class="btn btn-primary" href="/networks/new" style="background-color:<%= ui.button_color %>">Add another network</a>
+     </div>
+
+     <footer class="py-3 bg-white shadow-sm w-100 text-muted">
+       <div class="container">
+         <%= for {info_name, info_data} <- device_info do %>
+           <div class="row">
+             <strong class="col-sm-2"><%= info_name %></strong>
+             <span class="col"><%= info_data %></span>
+           </div>
+         <% end %>
+        </div>
+     </footer>
+     <script src="/js/access_point.js"></script>
+  </body>
+</html>

@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+    <title><%= ui.title %></title>
+    <link rel="stylesheet" type="text/css" href="/css/bootstrap.min.css">
+    <link rel="stylesheet" type="text/css" href="/css/styles.css">
+  </head>
+  <body class="bg-light h-100 d-flex flex-column">
+     <div class="container">
+       <h1 class="text-right mt-2"><a href="/" style="color: <%= ui.title_color %>"><%= ui.title %></a></h1>
+       <div id="ssid" value="<%= ssid %>" hidden></div>
+
+       <div class="content">
+        <p>Please wait while the <%= ui.title %> verifies your configuration.</p>
+
+        <p>If this page doesn't update in 15-30 seconds, check that you're connected to
+        the access point named "<b><%= ssid %></b>"</p>
+       </div>
+     </div>
+     <footer class="py-3 bg-white shadow-sm w-100 text-muted">
+       <div class="container">
+         <%= for {info_name, info_data} <- device_info do %>
+           <div class="row">
+             <strong class="col-sm-2"><%= info_name %></strong>
+             <span class="col"><%= info_data %></span>
+           </div>
+         <% end %>
+     </footer>
+     <script src="/js/apply.js"></script>
+     <script>applyConfiguration("<%= ui.title %>", "<%= ui.button_color %>")</script>
+  </body>
+</html>

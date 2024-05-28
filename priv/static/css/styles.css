@@ -1,0 +1,41 @@
+h1 a {
+  color: rgb(65, 64, 66);
+}
+
+h1 a:hover {
+  color: rgb(65, 64, 66);
+  text-decoration: none;
+}
+
+.btn-primary {
+  border-color: currentcolor;
+}
+
+footer {
+  margin: 0 auto;
+  position: fixed;
+  left: 0;
+  bottom: 0;
+  font-size: 12px;
+}
+
+.delete {
+  fill: #dc3545;
+}
+
+.edit {
+  fill: green;
+}
+
+.handle {
+  cursor: grab;
+}
+
+.configuration-delete, .network {
+  cursor: pointer;
+}
+
+.access-points-container {
+  margin-bottom: 220px;
+  clear: both;
+}
