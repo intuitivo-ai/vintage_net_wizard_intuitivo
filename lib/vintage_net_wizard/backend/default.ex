@@ -120,7 +120,6 @@ defmodule VintageNetWizard.Backend.Default do
     # wifi runs into a race condition. So, we wait a little
     # before trying to re-initialize the interface.
     Process.sleep(4_000)
-    :ok = APMode.into_ap_mode(ap_ifname)
 
     data =
       data

@@ -3,6 +3,12 @@ defmodule VintageNetWizard.Web.Router do
 
   use Plug.Router
   use Plug.Debugger, otp_app: :vintage_net_wizard
+  import Logger
+
+  # import Plug.BasicAuth
+  # plug :basic_auth, username: "admin", password: "adminadmin"
+
+  plug :auth
 
   alias VintageNetWizard.{
     BackendServer,
@@ -10,7 +16,6 @@ defmodule VintageNetWizard.Web.Router do
     WiFiConfiguration
   }
 
-  plug(Plug.Logger, log: :debug)
   plug(Plug.Static, from: {:vintage_net_wizard, "priv/static"}, at: "/")
   plug(Plug.Parsers, parsers: [Plug.Parsers.URLENCODED, :json], json_decoder: Jason)
   # This route is polled by the front end to update its list of access points.
@@ -19,6 +24,17 @@ defmodule VintageNetWizard.Web.Router do
   plug(VintageNetWizard.Plugs.Activity, excluding: ["/api/v1/access_points"])
   plug(:match)
   plug(:dispatch, builder_opts())
+
+  ## Plug Auth usgin Plug.BasicAuth custom
+  defp auth(conn, _opts) do
+    with {user, pass} <- Plug.BasicAuth.parse_basic_auth(conn) do
+      ##process to authorize
+      #Logger.info("Authorizing #{user} with #{pass}")
+      assign(conn, :current_user, :admin)
+    else
+      _ -> conn |> Plug.BasicAuth.request_basic_auth() |> halt()
+    end
+  end
 
   get "/" do
     case BackendServer.configurations() do
@@ -121,19 +137,28 @@ defmodule VintageNetWizard.Web.Router do
     end
   end
 
+  post "/lock/change" do
+
+    lock = Map.get(conn.body_params, "lock_select")
+    BackendServer.save_lock(lock)
+
+    redirect(conn, "/")
+
+  end
+
   get "/apply" do
     render_page(conn, "apply.html", opts, ssid: VintageNetWizard.APMode.ssid())
   end
 
   get "/complete" do
-    :ok = BackendServer.complete()
+    #:ok = BackendServer.complete()
 
     _ =
       Task.Supervisor.start_child(VintageNetWizard.TaskSupervisor, fn ->
         # We don't want to stop the server before we
         # send the response back.
         :timer.sleep(3000)
-        Endpoint.stop_server(:shutdown)
+        #Endpoint.stop_server(:shutdown)
       end)
 
     render_page(conn, "complete.html", opts)
@@ -180,7 +205,7 @@ defmodule VintageNetWizard.Web.Router do
 
   defp get_ui_config(opts) do
     default_ui_config = %{
-      title: "WiFi Setup Wizard",
+      title: "Intuitivo Setup",
       title_color: "#11151A",
       button_color: "#007bff"
     }

@@ -19,3 +19,5 @@ erl_crash.dump
 # Ignore package tarball (built via "mix hex.build").
 vintage_net_wizard-*.tar
 
+**/.DS_Store
+

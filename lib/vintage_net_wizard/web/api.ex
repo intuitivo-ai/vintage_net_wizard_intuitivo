@@ -1,5 +1,6 @@
 defmodule VintageNetWizard.Web.Api do
   @moduledoc false
+  import Logger
 
   use Plug.Router
 
@@ -11,6 +12,22 @@ defmodule VintageNetWizard.Web.Api do
   plug(Plug.Parsers, parsers: [:json], json_decoder: Jason)
   plug(:match)
   plug(:dispatch)
+
+  get "/door" do
+    send_json(conn, 200, Jason.encode!(BackendServer.get_door()))
+  end
+
+  get "/status_lock" do
+    send_json(conn, 200, Jason.encode!(BackendServer.get_lock()))
+  end
+
+  get "/state_imbera" do
+    send_json(conn, 200, Jason.encode!(BackendServer.get_state_imbera()))
+  end
+
+  get "/lock_type" do
+    send_json(conn, 200, Jason.encode!(BackendServer.get_lock_type()))
+  end
 
   get "/configuration/status" do
     with status <- BackendServer.configuration_status(),
@@ -27,6 +44,13 @@ defmodule VintageNetWizard.Web.Api do
     send_json(conn, 200, access_points)
   end
 
+  put "/lock" do
+
+    BackendServer.change_lock(true)
+
+    send_json(conn, 204, "")
+  end
+
   put "/ssids" do
     conn
     |> get_body()
@@ -36,14 +60,14 @@ defmodule VintageNetWizard.Web.Api do
   end
 
   get "/complete" do
-    :ok = BackendServer.complete()
+    #:ok = BackendServer.complete()
 
     _ =
       Task.Supervisor.start_child(VintageNetWizard.TaskSupervisor, fn ->
         # We don't want to stop the server before we
         # send the response back.
         :timer.sleep(3000)
-        Endpoint.stop_server(:shutdown)
+        #Endpoint.stop_server(:shutdown)
       end)
 
     send_json(conn, 202, "")
@@ -56,6 +80,33 @@ defmodule VintageNetWizard.Web.Api do
 
     send_json(conn, 200, json)
   end
+
+  get "/init_cams" do
+
+    BackendServer.set_init_cam(true)
+
+    send_json(conn, 200, Jason.encode!(%{"state" => "ok"}))
+  end
+
+  get "/stop_cams" do
+
+    BackendServer.set_stop_cam(true)
+
+    send_json(conn, 200, Jason.encode!(%{"state" => "ok"}))
+  end
+
+  post "/cam" do
+
+    result = conn
+    |> get_body()
+
+    case File.read("/root/cam#{result["cam_index"]}/frame#{result["format_index"]}.jpg") do
+      {:ok, binary} -> send_imagen(conn, 200, binary)
+      {:error, _posix} -> send_json(conn, 204, "")
+    end
+
+  end
+
 
   post "/apply" do
     case BackendServer.apply() do
@@ -150,4 +201,11 @@ defmodule VintageNetWizard.Web.Api do
       message: "A user is required."
     })
   end
+
+  defp send_imagen(conn, status_code, binary) do
+    conn
+    |> put_resp_content_type("image/jpeg")
+    |> send_resp(status_code, binary)
+  end
+
 end

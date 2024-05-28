@@ -3,6 +3,7 @@ defmodule VintageNetWizard.BackendServer do
   Server for managing a VintageNet.Backend implementation
   """
   use GenServer
+  require Logger
 
   alias VintageNetWiFi.AccessPoint
   alias VintageNetWizard.{APMode, Backend}
@@ -15,7 +16,16 @@ defmodule VintageNetWizard.BackendServer do
               configurations: %{},
               device_info: [],
               ap_ifname: nil,
-              ifname: nil
+              ifname: nil,
+              lock: false,
+              door: %{},
+              status_lock: %{},
+              lock_type: %{},
+              state_imbera: %{},
+              init_cam: false,
+              stop_cam: false,
+              lock_type_select: "",
+              change_lock: false
   end
 
   @spec child_spec(any(), any(), keyword()) :: map()
@@ -109,6 +119,10 @@ defmodule VintageNetWizard.BackendServer do
     GenServer.call(__MODULE__, {:save, config})
   end
 
+  def save_lock(lock) do
+    GenServer.cast(__MODULE__, {:save_lock, lock})
+  end
+
   @doc """
   Get a list of the current configurations
   """
@@ -149,6 +163,66 @@ defmodule VintageNetWizard.BackendServer do
     GenServer.call(__MODULE__, :complete)
   end
 
+  def set_door(door) do
+    GenServer.cast(__MODULE__, {:set_door, door})
+  end
+
+  def set_lock(lock) do
+    GenServer.cast(__MODULE__, {:set_lock, lock})
+  end
+
+  def set_lock_type(lock_type) do
+    GenServer.cast(__MODULE__, {:set_lock_type, lock_type})
+  end
+
+  def set_state_imbera(state_imbera) do
+    GenServer.cast(__MODULE__, {:set_state_imbera, state_imbera})
+  end
+
+  def change_lock(value) do
+    GenServer.cast(__MODULE__, {:change_lock, value})
+  end
+
+  def set_init_cam(value) do
+    GenServer.cast(__MODULE__, {:set_init_cam, value})
+  end
+
+  def set_stop_cam(value) do
+    GenServer.cast(__MODULE__, {:set_stop_cam, value})
+  end
+
+  def get_door() do
+    GenServer.call(__MODULE__, :get_door)
+  end
+
+  def get_state_imbera() do
+    GenServer.call(__MODULE__, :get_state_imbera)
+  end
+
+  def get_lock() do
+    GenServer.call(__MODULE__, :get_lock)
+  end
+
+  def get_lock_type() do
+    GenServer.call(__MODULE__, :get_lock_type)
+  end
+
+  def get_change_lock() do
+    GenServer.call(__MODULE__, :get_change_lock)
+  end
+
+  def get_change_lock_type() do
+    GenServer.call(__MODULE__, :get_change_lock_type)
+  end
+
+  def init_cam() do
+    GenServer.call(__MODULE__, :init_cam)
+  end
+
+  def stop_cam() do
+    GenServer.call(__MODULE__, :stop_cam)
+  end
+
   @impl GenServer
   def init([backend, ifname, opts]) do
     device_info = Keyword.get(opts, :device_info, [])
@@ -170,6 +244,106 @@ defmodule VintageNetWizard.BackendServer do
        ifname: ifname,
        ap_ifname: ap_ifname
      }}
+  end
+
+  @impl GenServer
+  def handle_call(
+        :init_cam,
+        _from,
+          state
+      ) do
+
+        {:reply, state.init_cam, state}
+  end
+
+  @impl GenServer
+  def handle_call(
+        :stop_cam,
+        _from,
+          state
+      ) do
+
+        {:reply, state.stop_cam, state}
+  end
+
+  @impl GenServer
+  def handle_call(
+        :get_lock,
+        _from,
+          state
+      ) do
+
+    {:reply, state.status_lock, state}
+  end
+
+  @impl GenServer
+  def handle_call(
+        :get_lock_type,
+        _from,
+          state
+      ) do
+
+    {:reply, state.lock_type, state}
+  end
+
+  @impl GenServer
+  def handle_call(
+        :get_change_lock,
+        _from,
+          state
+      ) do
+
+    {:reply, state.lock, state}
+  end
+
+  @impl GenServer
+  def handle_call(
+        :get_change_lock_type,
+        _from,
+          state
+      ) do
+
+    {:reply, %{"lock_type_select" => state.lock_type_select, "change_lock" => state.change_lock}, state}
+  end
+
+  @impl GenServer
+  def handle_call(
+        :get_door,
+        _from,
+          state
+      ) do
+
+    {:reply, state.door, state}
+  end
+
+  @impl GenServer
+  def handle_call(
+        :get_state_imbera,
+        _from,
+          state
+      ) do
+
+    {:reply, state.state_imbera, state}
+  end
+
+  @impl GenServer
+  def handle_call(
+        :get_open_lock,
+        _from,
+          state
+      ) do
+
+    {:reply, state.open_lock, state}
+  end
+
+  @impl GenServer
+  def handle_call(
+        :get_close_lock,
+        _from,
+          state
+      ) do
+
+    {:reply, state.close_lock, state}
   end
 
   @impl GenServer
@@ -330,6 +504,51 @@ defmodule VintageNetWizard.BackendServer do
 
     :ok = deconfigure_ap_ifname(state)
     {:reply, :ok, %{state | backend_state: new_backend_state}}
+  end
+
+  @impl GenServer
+  def handle_cast({:set_door, door}, state) do
+    {:noreply, %{state | door: door}}
+  end
+
+  @impl GenServer
+  def handle_cast({:set_lock, lock}, state) do
+    {:noreply, %{state | status_lock: lock}}
+  end
+
+  @impl GenServer
+  def handle_cast({:set_lock_type, lock_type}, state) do
+    {:noreply, %{state | lock_type: lock_type}}
+  end
+
+  @impl GenServer
+  def handle_cast({:set_state_imbera, state_imbera}, state) do
+    {:noreply, %{state | state_imbera: state_imbera}}
+  end
+
+  @impl GenServer
+  def handle_cast({:change_lock, value}, state) do
+    {:noreply, %{state | lock: value}}
+  end
+
+  @impl GenServer
+  def handle_cast({:save_lock, value}, state) do
+
+    Logger.info("New lock TYPE: #{inspect(value)}")
+
+    {:noreply, %{state | lock_type_select: value, change_lock: true}}
+  end
+
+  @impl GenServer
+  def handle_cast({:set_stop_cam, value}, state) do
+
+    {:noreply, %{state | stop_cam: value}}
+  end
+
+  @impl GenServer
+  def handle_cast({:set_init_cam, value}, state) do
+
+    {:noreply, %{state | init_cam: value}}
   end
 
   @impl GenServer
