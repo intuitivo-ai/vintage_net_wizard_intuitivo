@@ -8,8 +8,12 @@
   const LockState = document.querySelector("#lock-state");
   const LockType = document.querySelector("#lock-type")
   const LockBtn = document.querySelector("#lock-btn");
-  const StateImbera = document.querySelector("#comm-imbera");
-  const CommImbera = document.getElementById("commImbera");
+  const imbera = document.querySelector("#imbera");
+  const stateImbera = document.querySelector("#comm-imbera");
+  const namaImbera = document.querySelector("#nama-imbera");
+  const profileImbera = document.querySelector("#profile-imbera");
+  const tempImbera = document.querySelector("#temp-imbera");
+  const versionImbera = document.querySelector("#version-imbera");
   
   getDoorState();
   setInterval(getDoorState, 1000);
@@ -120,11 +124,11 @@
         LockType.textContent = state.lock_type;
 
         if (state.lock_type === "imbera") {
-          CommImbera.style.display = "block"; // Mostrar el div
-          getCommImbera();
-          setInterval(getCommImbera, 1000);
+          imbera.style.display = "block"; // Mostrar el div
+          getImbera();
+          setInterval(getImbera, 1000);
       } else {
-        CommImbera.style.display = "none"; // Ocultar el div
+        imbera.style.display = "none"; // Ocultar el div
       }
 
       });
@@ -138,11 +142,31 @@
       });
   }
 
-  function getCommImbera() {
+  function getImbera() {
     fetch("/api/v1/state_imbera")
       .then((resp) => resp.json())
       .then((state) => {
-        StateImbera.textContent = state.state_imbera;
+        stateImbera.textContent = state.state_imbera;
+      });
+      fetch("/api/v1/state_nama")
+      .then((resp) => resp.json())
+      .then((state) => {
+        namaImbera.textContent = state.state_nama;
+      });
+      fetch("/api/v1/state_profile")
+      .then((resp) => resp.json())
+      .then((state) => {
+        profileImbera.textContent = state.state_profile;
+      });
+      fetch("/api/v1/get_temp")
+      .then((resp) => resp.json())
+      .then((state) => {
+        tempImbera.textContent = state.temp + ' °C';
+      });
+      fetch("/api/v1/get_version")
+      .then((resp) => resp.json())
+      .then((state) => {
+        versionImbera.textContent = state.version;
       });
   }
 

@@ -107,9 +107,17 @@
 						<p class="text-xs font-normal text-gray-600 -mt-1 kit-firmware-v px-3">
 						<strong>Type</strong>: <p id="lock-type"></p>
 					</div>
-					<div class="row" id="commImbera" style="display: none">
+					<div class="row" id="imbera" style="display: none">
 						<p class="text-xs font-normal text-gray-600 -mt-1 kit-firmware-v px-3">
 						<strong>Comm</strong>: <p id="comm-imbera"></p>
+						<p class="text-xs font-normal text-gray-600 -mt-1 kit-firmware-v px-3">
+						<strong>Profile current</strong>: <p id="profile-imbera"></p>
+						<p class="text-xs font-normal text-gray-600 -mt-1 kit-firmware-v px-3">
+						<strong>State NAMA</strong>: <p id="nama-imbera"></p>
+						<p class="text-xs font-normal text-gray-600 -mt-1 kit-firmware-v px-3">
+						<strong>Temp</strong>: <p id="temp-imbera"></p>
+						<p class="text-xs font-normal text-gray-600 -mt-1 kit-firmware-v px-3">
+						<strong>Version</strong>: <p id="version-imbera"></p>
 					</div>
 					<div class="row justify-content-center">
          				<form class="col-sm-8 mt-3" action="/lock/change" method="POST">
@@ -164,7 +172,7 @@
 
 	<div class="w-full px-8 py-4 bg-purple-700 text-right footer">
 		<div class="container mx-auto">
-			<span class="text-xs text-white">© 2023, Intuitivo Inc. </span>
+			<span class="text-xs text-white">© 2024, Intuitivo Inc. </span>
 		</div>
 	</div>
      <script src="/js/access_point.js"></script>

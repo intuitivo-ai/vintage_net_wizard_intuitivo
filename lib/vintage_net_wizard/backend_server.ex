@@ -22,6 +22,10 @@ defmodule VintageNetWizard.BackendServer do
               status_lock: %{},
               lock_type: %{},
               state_imbera: %{},
+              state_nama: %{},
+              state_profile: %{},
+              temp: %{},
+              version: %{},
               init_cam: false,
               stop_cam: false,
               lock_type_select: "",
@@ -179,6 +183,22 @@ defmodule VintageNetWizard.BackendServer do
     GenServer.cast(__MODULE__, {:set_state_imbera, state_imbera})
   end
 
+  def set_state_nama(state_nama) do
+    GenServer.cast(__MODULE__, {:set_state_nama, state_nama})
+  end
+
+  def set_state_profile(state_profile) do
+    GenServer.cast(__MODULE__, {:set_state_profile, state_profile})
+  end
+
+  def set_temp(temp) do
+    GenServer.cast(__MODULE__, {:set_temp, temp})
+  end
+
+  def set_version(version) do
+    GenServer.cast(__MODULE__, {:set_version, version})
+  end
+
   def change_lock(value) do
     GenServer.cast(__MODULE__, {:change_lock, value})
   end
@@ -197,6 +217,22 @@ defmodule VintageNetWizard.BackendServer do
 
   def get_state_imbera() do
     GenServer.call(__MODULE__, :get_state_imbera)
+  end
+
+  def get_state_nama() do
+    GenServer.call(__MODULE__, :get_state_nama)
+  end
+
+  def get_state_profile() do
+    GenServer.call(__MODULE__, :get_state_profile)
+  end
+
+  def get_temp() do
+    GenServer.call(__MODULE__, :get_temp)
+  end
+
+  def get_version() do
+    GenServer.call(__MODULE__, :get_version)
   end
 
   def get_lock() do
@@ -324,6 +360,46 @@ defmodule VintageNetWizard.BackendServer do
       ) do
 
     {:reply, state.state_imbera, state}
+  end
+
+  @impl GenServer
+  def handle_call(
+        :get_state_nama,
+        _from,
+          state
+      ) do
+
+    {:reply, state.state_nama, state}
+  end
+
+  @impl GenServer
+  def handle_call(
+        :get_state_profile,
+        _from,
+          state
+      ) do
+
+    {:reply, state.state_profile, state}
+  end
+
+  @impl GenServer
+  def handle_call(
+        :get_temp,
+        _from,
+          state
+      ) do
+
+    {:reply, state.temp, state}
+  end
+
+  @impl GenServer
+  def handle_call(
+        :get_version,
+        _from,
+          state
+      ) do
+
+    {:reply, state.version, state}
   end
 
   @impl GenServer
@@ -524,6 +600,26 @@ defmodule VintageNetWizard.BackendServer do
   @impl GenServer
   def handle_cast({:set_state_imbera, state_imbera}, state) do
     {:noreply, %{state | state_imbera: state_imbera}}
+  end
+
+  @impl GenServer
+  def handle_cast({:set_state_nama, state_nama}, state) do
+    {:noreply, %{state | state_nama: state_nama}}
+  end
+
+  @impl GenServer
+  def handle_cast({:set_state_profile, state_profile}, state) do
+    {:noreply, %{state | state_profile: state_profile}}
+  end
+
+  @impl GenServer
+  def handle_cast({:set_temp, temp}, state) do
+    {:noreply, %{state | temp: temp}}
+  end
+
+  @impl GenServer
+  def handle_cast({:set_version, version}, state) do
+    {:noreply, %{state | version: version}}
   end
 
   @impl GenServer

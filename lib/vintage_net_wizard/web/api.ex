@@ -25,6 +25,22 @@ defmodule VintageNetWizard.Web.Api do
     send_json(conn, 200, Jason.encode!(BackendServer.get_state_imbera()))
   end
 
+  get "/state_nama" do
+    send_json(conn, 200, Jason.encode!(BackendServer.get_state_nama()))
+  end
+
+  get "/state_profile" do
+    send_json(conn, 200, Jason.encode!(BackendServer.get_state_profile()))
+  end
+
+  get "/get_temp" do
+    send_json(conn, 200, Jason.encode!(BackendServer.get_temp()))
+  end
+
+  get "/get_version" do
+    send_json(conn, 200, Jason.encode!(BackendServer.get_version()))
+  end
+
   get "/lock_type" do
     send_json(conn, 200, Jason.encode!(BackendServer.get_lock_type()))
   end
