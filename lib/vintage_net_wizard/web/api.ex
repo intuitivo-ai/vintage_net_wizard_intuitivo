@@ -8,6 +8,7 @@ defmodule VintageNetWizard.Web.Api do
   alias VintageNetWizard.BackendServer
   alias VintageNetWizard.Web.Endpoint
   alias VintageNetWizard.WiFiConfiguration
+  alias In2Firmware.Services.Lock
 
   plug(Plug.Parsers, parsers: [:json], json_decoder: Jason)
   plug(:match)
@@ -63,6 +64,17 @@ defmodule VintageNetWizard.Web.Api do
   put "/lock" do
 
     BackendServer.change_lock(true)
+
+    send_json(conn, 204, "")
+  end
+
+  put "/nama_change" do
+    result = conn
+    |> get_body()
+    |> Map.get("value", false)
+
+    Logger.info("Nama change #{inspect(result)}")
+    Lock.activate_nama(result)
 
     send_json(conn, 204, "")
   end

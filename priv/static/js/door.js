@@ -8,13 +8,15 @@
   const LockState = document.querySelector("#lock-state");
   const LockType = document.querySelector("#lock-type")
   const LockBtn = document.querySelector("#lock-btn");
+  const LockNama = document.querySelector("#switch-nama");
+  const divNama = document.querySelector("#nama-activate");
   const imbera = document.querySelector("#imbera");
   const stateImbera = document.querySelector("#comm-imbera");
   const namaImbera = document.querySelector("#nama-imbera");
   const profileImbera = document.querySelector("#profile-imbera");
   const tempImbera = document.querySelector("#temp-imbera");
   const versionImbera = document.querySelector("#version-imbera");
-  
+
   getDoorState();
   setInterval(getDoorState, 1000);
 
@@ -28,7 +30,7 @@
   setTimeout(() => changeVideo("0", 1), 2000)
 
   setTimeout(() => changeVideo("1", 1), 2000)
-  
+
   setTimeout(() => changeVideo("2", 1), 2000)
 
   async function fetchBinaryData(url, data) {
@@ -39,13 +41,13 @@
         'Content-Type': 'application/json'
       }
     });
-  
+
     if (!response.ok) {
       throw new Error('Error al obtener el binary.');
     }
-  
+
     return response.arrayBuffer();
-    
+
   }
 
   function arrayBufferToBase64(buffer) {
@@ -62,7 +64,7 @@
     const base64Data = arrayBufferToBase64(binaryData);
     cam.src = 'data:image/jpeg;base64,' + base64Data;
   }
-  
+
   function initStream() {
     fetch("/api/v1/init_cams")
       .then((resp) => resp.json())
@@ -80,32 +82,32 @@
   window.addEventListener("beforeunload", function (e) {
     stopStream()
     return                             //Webkit, Safari, Chrome
-    });
+  });
 
   window.addEventListener("onunload", function (e) {
     stopStream()
     return                             //Webkit, Safari, Chrome
-    });
-
-  async function changeVideo(cam_index, index){
-    const cam = document.querySelector(`#cam${cam_index}`);
-    
-    const format_index = index.toString().padStart(4, '0');
-    
-    fetchBinaryData("/api/v1/cam", {cam_index: cam_index, format_index: format_index})
-  .then((binaryData) => {
-    setcam(cam, binaryData);
-  })
-  .catch((error) => {
-    console.error('Error: ', error);
   });
-   
+
+  async function changeVideo(cam_index, index) {
+    const cam = document.querySelector(`#cam${cam_index}`);
+
+    const format_index = index.toString().padStart(4, '0');
+
+    fetchBinaryData("/api/v1/cam", { cam_index: cam_index, format_index: format_index })
+      .then((binaryData) => {
+        setcam(cam, binaryData);
+      })
+      .catch((error) => {
+        console.error('Error: ', error);
+      });
+
     await sleep(1000)
 
-    changeVideo(cam_index, index+1)
+    changeVideo(cam_index, index + 1)
   }
 
-  function sleep(ms){
+  function sleep(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
   };
 
@@ -125,11 +127,15 @@
 
         if (state.lock_type === "imbera") {
           imbera.style.display = "block"; // Mostrar el div
+          divNama.style.display = "block"; // Mostrar el div
+          getImberaInit();
           getImbera();
           setInterval(getImbera, 1000);
-      } else {
-        imbera.style.display = "none"; // Ocultar el div
-      }
+          setInterval(getImberaInit, 12000);
+        } else {
+          imbera.style.display = "none"; // Ocultar el div
+          divNama.style.display = "none"; // Mostrar el div
+        }
 
       });
   }
@@ -148,43 +154,69 @@
       .then((state) => {
         stateImbera.textContent = state.state_imbera;
       });
-      fetch("/api/v1/state_nama")
+    fetch("/api/v1/state_nama")
       .then((resp) => resp.json())
       .then((state) => {
         namaImbera.textContent = state.state_nama;
       });
-      fetch("/api/v1/state_profile")
+    fetch("/api/v1/state_profile")
       .then((resp) => resp.json())
       .then((state) => {
         profileImbera.textContent = state.state_profile;
       });
-      fetch("/api/v1/get_temp")
+    fetch("/api/v1/get_temp")
       .then((resp) => resp.json())
       .then((state) => {
         tempImbera.textContent = state.temp + ' °C';
       });
-      fetch("/api/v1/get_version")
+    fetch("/api/v1/get_version")
       .then((resp) => resp.json())
       .then((state) => {
         versionImbera.textContent = state.version;
       });
   }
 
+  function getImberaInit() {
+    fetch("/api/v1/state_profile")
+      .then((resp) => resp.json())
+      .then((state) => {
+        profileImbera.textContent = state.state_profile;
+        if (state.state_profile == 1) {
+          LockNama.checked = false;
+        }
+        else
+          if (state.state_profile == 2) {
+            LockNama.checked = true;
+          }
+      });
+  }
+
   LockBtn.addEventListener("click", ({ target }) => {
     disableBtn(LockBtn, true);
     fetch("/api/v1/lock", {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json"
-        },
-        body: ""
-      })
-      setTimeout(() => disableBtn(LockBtn, false), 1000);
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: ""
+    })
+    setTimeout(() => disableBtn(LockBtn, false), 1000);
   });
 
-  function disableBtn(btn, disabled){
-    btn.disabled = disabled; 
-   }
+  function disableBtn(btn, disabled) {
+    btn.disabled = disabled;
+  }
+
+  LockNama.addEventListener("click", ({ target }) => {
+    //console.log(`debug: ${target.checked}`)
+    fetch("/api/v1/nama_change", {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({value: target.checked})
+    })
+  });
 
 })()
 

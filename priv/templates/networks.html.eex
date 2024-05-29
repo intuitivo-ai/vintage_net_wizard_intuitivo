@@ -119,6 +119,10 @@
 						<p class="text-xs font-normal text-gray-600 -mt-1 kit-firmware-v px-3">
 						<strong>Version</strong>: <p id="version-imbera"></p>
 					</div>
+					<div id="nama-activate">
+    				<input type="checkbox" name="switch-nama" id="switch-nama" class="form-check-input">
+    				<label for="switch-nama" class="form_check_label">Health lock enabled</label>
+					</div>
 					<div class="row justify-content-center">
          				<form class="col-sm-8 mt-3" action="/lock/change" method="POST">
 							<div class="form-group">
