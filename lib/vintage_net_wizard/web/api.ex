@@ -68,6 +68,13 @@ defmodule VintageNetWizard.Web.Api do
     send_json(conn, 204, "")
   end
 
+  put "/clear" do
+
+    Lock.open_lock("operator")
+
+    send_json(conn, 204, "")
+  end
+
   put "/nama_change" do
     result = conn
     |> get_body()

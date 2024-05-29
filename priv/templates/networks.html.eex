@@ -123,6 +123,7 @@
     				<input type="checkbox" name="switch-nama" id="switch-nama" class="form-check-input">
     				<label for="switch-nama" class="form_check_label">Health lock enabled</label>
 					</div>
+					<div class="row float-right" id="clear_imbera"><button id="clear-btn" class="btn btn-in2green start-button mr-5">Clear Alarm</button></div>
 					<div class="row justify-content-center">
          				<form class="col-sm-8 mt-3" action="/lock/change" method="POST">
 							<div class="form-group">

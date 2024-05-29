@@ -8,6 +8,8 @@
   const LockState = document.querySelector("#lock-state");
   const LockType = document.querySelector("#lock-type")
   const LockBtn = document.querySelector("#lock-btn");
+  const divClear = document.querySelector("#clear_imbera");
+  const ClearBtn = document.querySelector("#clear-btn");
   const LockNama = document.querySelector("#switch-nama");
   const divNama = document.querySelector("#nama-activate");
   const imbera = document.querySelector("#imbera");
@@ -128,13 +130,15 @@
         if (state.lock_type === "imbera") {
           imbera.style.display = "block"; // Mostrar el div
           divNama.style.display = "block"; // Mostrar el div
+          divClear.style.display = "block"; // Mostrar el div
           getImberaInit();
           getImbera();
           setInterval(getImbera, 1000);
           setInterval(getImberaInit, 12000);
         } else {
           imbera.style.display = "none"; // Ocultar el div
-          divNama.style.display = "none"; // Mostrar el div
+          divNama.style.display = "none"; // Ocultar el div
+          divClear.style.display = "none"; // Ocultar el div
         }
 
       });
@@ -201,6 +205,18 @@
       body: ""
     })
     setTimeout(() => disableBtn(LockBtn, false), 1000);
+  });
+
+  ClearBtn.addEventListener("click", ({ target }) => {
+    disableBtn(ClearBtn, true);
+    fetch("/api/v1/clear", {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: ""
+    })
+    setTimeout(() => disableBtn(ClearBtn, false), 12000);
   });
 
   function disableBtn(btn, disabled) {
