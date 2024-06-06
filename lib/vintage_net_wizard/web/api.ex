@@ -8,6 +8,7 @@ defmodule VintageNetWizard.Web.Api do
   alias VintageNetWizard.BackendServer
   alias VintageNetWizard.Web.Endpoint
   alias VintageNetWizard.WiFiConfiguration
+  alias In2Firmware.Services.Operations
   alias In2Firmware.Services.Lock
 
   plug(Plug.Parsers, parsers: [:json], json_decoder: Jason)
@@ -70,7 +71,8 @@ defmodule VintageNetWizard.Web.Api do
 
   put "/clear" do
 
-    Lock.open_lock("operator")
+    #Lock.open_lock("operator")
+    Operations.init_trx_op()
 
     send_json(conn, 204, "")
   end
