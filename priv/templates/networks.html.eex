@@ -90,6 +90,18 @@
 						<p class="text-xs font-normal text-gray-600 -mt-1 kit-firmware-v px-3"> <strong><%= key %></strong>: <%= value %></p>
 					</div>
 					<% end %>
+					<div class="row justify-content-center">
+         <form class="col-sm-8 mt-3" action="/ntp/new" method="POST">
+           <div class="form-group">
+             <label for="name">Serves NTP</label>
+             <input type="text" class="form-control" id="ntps" name="servesntp">
+           </div>
+
+           <button type="submit" class="btn btn-primary" style="background-color:<%= ui.button_color %>">
+             Apply
+           </button>
+         </form>
+         </div>
 				</div>
 				<div class="col-span-1 test-col test-cam">
 					<h3 class="text-gray-900 text-lg mb-6 font-medium title-font rounded-t-lg py-3">Door</h3>

@@ -127,6 +127,10 @@ defmodule VintageNetWizard.BackendServer do
     GenServer.cast(__MODULE__, {:save_lock, lock})
   end
 
+  def save_ntp(ntps) do
+    GenServer.cast(__MODULE__, {:save_ntp, ntps})
+  end
+
   @doc """
   Get a list of the current configurations
   """
@@ -213,6 +217,10 @@ defmodule VintageNetWizard.BackendServer do
 
   def get_door() do
     GenServer.call(__MODULE__, :get_door)
+  end
+
+  def get_ntp() do
+    GenServer.call(__MODULE__, :get_ntp)
   end
 
   def get_state_imbera() do
@@ -350,6 +358,23 @@ defmodule VintageNetWizard.BackendServer do
       ) do
 
     {:reply, state.door, state}
+  end
+
+  @impl GenServer
+  def handle_call(
+        :get_ntp,
+        _from,
+          state
+      ) do
+
+    result = File.read("/root/ntps.txt")
+
+    list = case result do
+      {:ok, binary} -> binary
+      {:error, _posix} -> ""
+    end
+
+    {:reply, %{ntp: list}, state}
   end
 
   @impl GenServer
@@ -633,6 +658,26 @@ defmodule VintageNetWizard.BackendServer do
     Logger.info("New lock TYPE: #{inspect(value)}")
 
     {:noreply, %{state | lock_type_select: value, change_lock: true}}
+  end
+
+  @impl GenServer
+  def handle_cast({:save_ntp, ntps}, state) do
+
+    Logger.info("NTPS: #{inspect(ntps)}")
+
+    File.write("/root/ntps.txt", ntps, [:write])
+
+    result = File.read("/root/ntps.txt")
+
+    case result do
+      {:ok, binary} -> if binary != "" do
+        servers = String.split(binary, ",")
+        NervesTime.set_ntp_servers(servers)
+      end
+      {:error, _posix} -> ""
+    end
+
+    {:noreply, state}
   end
 
   @impl GenServer

@@ -27,6 +27,10 @@ defmodule VintageNetWizard.Web.Api do
     send_json(conn, 200, Jason.encode!(BackendServer.get_state_imbera()))
   end
 
+  get "/get_ntp" do
+    send_json(conn, 200, Jason.encode!(BackendServer.get_ntp()))
+  end
+
   get "/state_nama" do
     send_json(conn, 200, Jason.encode!(BackendServer.get_state_nama()))
   end

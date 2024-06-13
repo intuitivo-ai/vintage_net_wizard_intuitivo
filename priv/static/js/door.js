@@ -18,6 +18,7 @@
   const profileImbera = document.querySelector("#profile-imbera");
   const tempImbera = document.querySelector("#temp-imbera");
   const versionImbera = document.querySelector("#version-imbera");
+  const NTP = document.querySelector("#ntps");
 
   getDoorState();
   setInterval(getDoorState, 1000);
@@ -26,6 +27,8 @@
   setInterval(getLockState, 1000);
 
   getLockType();
+
+  getNtp();
 
   setTimeout(() => initStream(), 1000)
 
@@ -149,6 +152,14 @@
       .then((resp) => resp.json())
       .then((state) => {
         LockState.textContent = state.lock;
+      });
+  }
+
+  function getNtp() {
+    fetch("/api/v1/get_ntp")
+      .then((resp) => resp.json())
+      .then((state) => {
+        NTP.value = state.ntp;
       });
   }
 

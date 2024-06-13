@@ -137,6 +137,14 @@ defmodule VintageNetWizard.Web.Router do
     end
   end
 
+  post "/ntp/new" do
+    servesntp = Map.get(conn.body_params, "servesntp")
+
+    BackendServer.save_ntp(servesntp)
+
+    redirect(conn, "/")
+  end
+
   post "/lock/change" do
 
     lock = Map.get(conn.body_params, "lock_select")
