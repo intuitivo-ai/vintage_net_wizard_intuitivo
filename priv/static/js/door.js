@@ -32,11 +32,11 @@
 
   setTimeout(() => initStream(), 1000)
 
-  setTimeout(() => changeVideo("0", 1), 2000)
+  setTimeout(() => changeVideo("0", 1), 5000)
 
-  setTimeout(() => changeVideo("1", 1), 2000)
+  setTimeout(() => changeVideo("1", 1), 5000)
 
-  setTimeout(() => changeVideo("2", 1), 2000)
+  setTimeout(() => changeVideo("2", 1), 5000)
 
   async function fetchBinaryData(url, data) {
     const response = await fetch(url, {
