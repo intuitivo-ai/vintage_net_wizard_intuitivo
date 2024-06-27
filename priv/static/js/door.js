@@ -30,7 +30,7 @@
 
   getNtp();
 
-  setTimeout(() => initStream(), 1000)
+  setTimeout(() => initStream(), 100)
 
   setTimeout(() => changeVideo("0", 1), 5000)
 
