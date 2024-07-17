@@ -29,8 +29,14 @@ defmodule VintageNetWizard.Web.Router do
   defp auth(conn, _opts) do
     with {user, pass} <- Plug.BasicAuth.parse_basic_auth(conn) do
       ##process to authorize
+      username = Application.get_env(:in2_firmware, :username)
+      password = Application.get_env(:in2_firmware, :password)
       #Logger.info("Authorizing #{user} with #{pass}")
-      assign(conn, :current_user, :admin)
+      if username == user and password == pass do
+        assign(conn, :current_user, :admin)
+      else
+        conn |> Plug.BasicAuth.request_basic_auth() |> halt()
+      end
     else
       _ -> conn |> Plug.BasicAuth.request_basic_auth() |> halt()
     end
