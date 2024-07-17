@@ -1,11 +1,12 @@
 defmodule VintageNetWizard.Web.Router do
   @moduledoc false
 
+  @combined_pattern ~r/^((\d{1,3}\.){3}\d{1,3}|[a-zA-Z0-9.-]+)(,((\d{1,3}\.){3}\d{1,3}|[a-zA-Z0-9.-]+))*$/
+  @ip_regex ~r/^(25[0-5]|2[0-4][0-9]|1[0-9]{2}|[1-9]?[0-9])\.(25[0-5]|2[0-4][0-9]|1[0-9]{2}|[1-9]?[0-9])\.(25[0-5]|2[0-4][0-9]|1[0-9]{2}|[1-9]?[0-9])\.(25[0-5]|2[0-4][0-9]|1[0-9]{2}|[1-9]?[0-9])$/
+
   use Plug.Router
   use Plug.Debugger, otp_app: :vintage_net_wizard
   import Logger
-
-  @combined_pattern ~r/^(\d{1,3}\.){3}\d{1,3}(,(\d{1,3}\.){3}\d{1,3})*,[a-zA-Z0-9.-]+$/
 
   plug :auth
 
@@ -30,6 +31,10 @@ defmodule VintageNetWizard.Web.Router do
     else
       {:error, "Invalid format"}
     end
+  end
+
+  defp valid_ip?(ip) when is_binary(ip) do
+    Regex.match?(@ip_regex, ip)
   end
 
   ## Plug Auth usgin Plug.BasicAuth custom
@@ -127,7 +132,7 @@ defmodule VintageNetWizard.Web.Router do
   end
 
   get "/networks" do
-    render_page(conn, "networks.html", opts, configuration_status: configuration_status_details(), error_ntp: "")
+    render_page(conn, "networks.html", opts, configuration_status: configuration_status_details(), error_ntp: "", error_address: "", error_netmask: "", error_gateway: "", error_name_servers: "")
   end
 
   get "/networks/new" do
@@ -156,7 +161,63 @@ defmodule VintageNetWizard.Web.Router do
     case validate_and_split(servesntp) do
       {:ok, result} -> BackendServer.save_ntp(result)
                       redirect(conn, "/")
-      {:error, message} -> render_page(conn, "networks.html", opts, configuration_status: configuration_status_details(), error_ntp: message)
+      {:error, message} -> render_page(conn, "networks.html", opts, configuration_status: configuration_status_details(), error_ntp: message, error_address: "", error_netmask: "", error_gateway: "", error_name_servers: "")
+    end
+  end
+
+  post "/add/config_wifi" do
+    case Map.get(conn.body_params, "method") do
+      "dhcp" ->
+        BackendServer.save_method(%{method: :dhcp})
+
+        redirect(conn, "/")
+
+      "static" ->
+
+        address = Map.get(conn.body_params, "address")
+
+        netmask = Map.get(conn.body_params, "netmask")
+
+        gateway = Map.get(conn.body_params, "gateway")
+
+        name_servers = Map.get(conn.body_params, "name_servers")
+
+        error_address = if valid_ip?(address) do
+          ""
+        else
+          "Invalid Format"
+        end
+
+        error_netmask = if valid_ip?(netmask) do
+          ""
+        else
+          "Invalid Format"
+        end
+
+        error_gateway = if valid_ip?(gateway) do
+          ""
+        else
+          "Invalid Format"
+        end
+
+        error_name_servers =case validate_and_split(name_servers) do
+          {:ok, _result} -> ""
+          {:error, message} -> message
+        end
+
+        if error_address == "" and error_netmask == "" and error_gateway == "" and error_name_servers == "" do
+          BackendServer.save_method(%{
+            method: :static,
+            address: address,
+            netmask: netmask,
+            gateway: gateway,
+            name_servers: String.split(name_servers, ",")
+          })
+
+          redirect(conn, "/")
+        else
+          render_page(conn, "networks.html", opts, configuration_status: configuration_status_details(), error_ntp: "", error_address: error_address, error_netmask: error_netmask, error_gateway: error_gateway, error_name_servers: error_name_servers)
+        end
     end
   end
 

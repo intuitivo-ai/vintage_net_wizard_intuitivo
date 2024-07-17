@@ -123,6 +123,10 @@ defmodule VintageNetWizard.BackendServer do
     GenServer.call(__MODULE__, {:save, config})
   end
 
+  def save_method(config) do
+    GenServer.cast(__MODULE__, {:save_method, config})
+  end
+
   def save_lock(lock) do
     GenServer.cast(__MODULE__, {:save_lock, lock})
   end
@@ -650,6 +654,18 @@ defmodule VintageNetWizard.BackendServer do
   @impl GenServer
   def handle_cast({:change_lock, value}, state) do
     {:noreply, %{state | lock: value}}
+  end
+
+  @impl GenServer
+  def handle_cast({:save_method, value}, state) do
+
+    Logger.info("config: #{inspect(value)}")
+
+    config = Jason.encode!(value)
+
+    File.write("/root/config_wifi.txt", config, [:write])
+
+    {:noreply, state}
   end
 
   @impl GenServer

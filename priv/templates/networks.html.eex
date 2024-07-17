@@ -131,6 +131,59 @@
                   </button>
                 </form>
               </div>
+              <div class="row justify-content-center">
+                <form class="col-sm-8 mt-3" action="/add/config_wifi" method="POST">
+                  <div class="form-group">
+                    <label for="method">method</label>
+                    <select id="method" name="method" class="custom-select js-security-select">
+                      <option value="dhcp" selected>dhcp</option>
+                      <option value="static">static</option>
+                    </select>
+                  </div>
+
+                  <div class="form-group">
+                    <label for="name">address</label>
+                    <input type="text" class="form-control" id="address" name="address" placeholder="192.168.9.232" />
+                    <%= if error_address != "" do %>
+                      <p class="text-danger"><%= error_address %></p>
+                    <% end %>
+                  </div>
+
+                  <div class="form-group">
+                    <label for="name">netmask</label>
+                    <input type="text" class="form-control" id="netmask" name="netmask" placeholder="255.255.255.0" />
+                    <%= if error_netmask != "" do %>
+                      <p class="text-danger"><%= error_netmask %></p>
+                    <% end %>
+                  </div>
+
+                  <div class="form-group">
+                    <label for="name">gateway</label>
+                    <input type="text" class="form-control" id="gateway" name="gateway" placeholder="192.168.9.1" />
+                    <%= if error_gateway != "" do %>
+                      <p class="text-danger"><%= error_gateway %></p>
+                    <% end %>
+                  </div>
+
+                  <div class="form-group">
+                    <label for="name">name_servers</label>
+                    <input
+                      type="text"
+                      class="form-control"
+                      id="name_servers"
+                      name="name_servers"
+                      placeholder="1.1.1.1,2.2.2.2"
+                    />
+                    <%= if error_name_servers != "" do %>
+                      <p class="text-danger"><%= error_name_servers %></p>
+                    <% end %>
+                  </div>
+
+                  <button type="submit" class="btn btn-primary" style="background-color:<%= ui.button_color %>">
+                    Apply
+                  </button>
+                </form>
+              </div>
             </div>
             <div class="col-span-1 test-col test-cam">
               <h3 class="text-gray-900 text-lg mb-6 font-medium title-font rounded-t-lg py-3">Door</h3>

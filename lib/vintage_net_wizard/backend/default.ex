@@ -152,13 +152,55 @@ defmodule VintageNetWizard.Backend.Default do
   end
 
   defp apply_configurations(wifi_configurations, state) do
-    VintageNet.configure(state.ifname, %{
-      type: VintageNetWiFi,
-      vintage_net_wifi: %{
-        networks: wifi_configurations
-      },
-      ipv4: %{method: :dhcp}
-    })
+
+    result = File.read("/root/config_wifi.txt")
+
+    case result do
+      {:ok, binary} -> if binary != "" do
+        {:ok, decoded_map} = Jason.decode(binary)
+        case decoded_map["method"] do
+          "dhcp" -> VintageNet.configure(state.ifname, %{
+            type: VintageNetWiFi,
+            vintage_net_wifi: %{
+              networks: wifi_configurations
+            },
+            ipv4: %{method: :dhcp}
+          })
+          "static" -> map_with_atom = %{
+            method: String.to_atom(decoded_map["method"]),
+            address: decoded_map["address"],
+            netmask: decoded_map["netmask"],
+            gateway: decoded_map["gateway"],
+            name_servers: decoded_map["name_servers"]
+        }
+        VintageNet.configure(state.ifname, %{
+          type: VintageNetWiFi,
+          vintage_net_wifi: %{
+            networks: wifi_configurations
+          },
+          ipv4: map_with_atom
+        })
+        end
+
+      else
+        VintageNet.configure(state.ifname, %{
+          type: VintageNetWiFi,
+          vintage_net_wifi: %{
+            networks: wifi_configurations
+          },
+          ipv4: %{method: :dhcp}
+        })
+      end
+      {:error, _posix} -> VintageNet.configure(state.ifname, %{
+        type: VintageNetWiFi,
+        vintage_net_wifi: %{
+          networks: wifi_configurations
+        },
+        ipv4: %{method: :dhcp}
+      })
+    end
+
+
   end
 
   defp start_scan_timer(), do: Process.send_after(self(), :run_scan, 20_000)
