@@ -1,9 +1,9 @@
-<HTML>
-  <HEAD>
-    <TITLE>Captive Portal</TITLE>
-    <META http-equiv="refresh" content="0; url=<%= dns_name %>">
-  </HEAD>
-  <BODY>
+<html>
+  <head>
+    <title>Captive Portal</title>
+    <meta http-equiv="refresh" content="0; url=<%= dns_name %>" />
+  </head>
+  <body>
     <p>Redirecting to Network Setup...</p>
-  </BODY>
-</HTML>
+  </body>
+</html>

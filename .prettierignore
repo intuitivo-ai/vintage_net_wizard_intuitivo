@@ -1,0 +1,15 @@
+README.md
+CHANGELOG.md
+deps/
+_build/
+.elixir_ls
+.circleci
+json-api.md 
+package.json 
+assets
+lib
+.github/
+.prettierrc.js 
+json-api.md 
+package-lock.json
+/priv/static/css

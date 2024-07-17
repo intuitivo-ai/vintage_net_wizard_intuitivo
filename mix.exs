@@ -16,6 +16,7 @@ defmodule VintageNetWizard.MixProject do
       docs: docs(),
       package: package(),
       description: description(),
+      aliases: aliases(),
       preferred_cli_env: [
         docs: :docs,
         "hex.publish": :docs,
@@ -74,6 +75,13 @@ defmodule VintageNetWizard.MixProject do
     [
       flags: [:unmatched_returns, :error_handling, :underspecs],
       list_unused_filters: true
+    ]
+  end
+
+  defp aliases do
+    [
+      prettier: "cmd ./assets/node_modules/.bin/prettier --color --check .",
+      "prettier.fix": "cmd ./assets/node_modules/.bin/prettier --color -w ."
     ]
   end
 

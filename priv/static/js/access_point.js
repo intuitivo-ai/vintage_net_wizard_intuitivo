@@ -1,4 +1,4 @@
-'use strict';
+"use strict";
 
 (() => {
   const accessPointsTable = document.querySelector(".access-points-table");
@@ -44,7 +44,7 @@
     tdElem.appendChild(ssidText);
     tdElem.classList.add("font-weight-bold");
 
-    return tdElem
+    return tdElem;
   }
 
   function buildSecurityTableData({ flags }) {
@@ -84,27 +84,26 @@
     } else if (isWPAEnterprise(flags)) {
       return "WPA Enterprise";
     } else {
-      return "None"
+      return "None";
     }
   }
 
   function attachClickEvent(networkTR, type) {
     networkTR.addEventListener("click", ({ target }) => {
-      const ssid = target.parentElement.dataset.ssid
+      const ssid = target.parentElement.dataset.ssid;
       if (type === "addConfig") {
         fetch(`/api/v1/${ssid}/configuration`, {
           method: "PUT",
           headers: {
-            "Content-Type": "application/json"
+            "Content-Type": "application/json",
           },
           body: JSON.stringify({
             password: "",
-            key_mgmt: "none"
-          })
-        })
-          .then(resp => {
-            window.location.href = "/";
-          })
+            key_mgmt: "none",
+          }),
+        }).then((resp) => {
+          window.location.href = "/";
+        });
       } else {
         window.location.href = "/ssid/" + encodeURI(ssid);
       }
@@ -118,5 +117,4 @@
   function isWPAEnterprise(flags) {
     return flags.includes("eap");
   }
-})()
-
+})();

@@ -1,4 +1,4 @@
-'use strict';
+"use strict";
 
 (() => {
   //const cam0 = document.querySelector("#cam0");
@@ -6,7 +6,7 @@
   //const cam2 = document.querySelector("#cam2");
   const doorState = document.querySelector("#door-state");
   const LockState = document.querySelector("#lock-state");
-  const LockType = document.querySelector("#lock-type")
+  const LockType = document.querySelector("#lock-type");
   const LockBtn = document.querySelector("#lock-btn");
   const divClear = document.querySelector("#clear_imbera");
   const ClearBtn = document.querySelector("#clear-btn");
@@ -30,33 +30,32 @@
 
   getNtp();
 
-  setTimeout(() => initStream(), 100)
+  setTimeout(() => initStream(), 100);
 
-  setTimeout(() => changeVideo("0", 1), 5000)
+  setTimeout(() => changeVideo("0", 1), 5000);
 
-  setTimeout(() => changeVideo("1", 1), 5000)
+  setTimeout(() => changeVideo("1", 1), 5000);
 
-  setTimeout(() => changeVideo("2", 1), 5000)
+  setTimeout(() => changeVideo("2", 1), 5000);
 
   async function fetchBinaryData(url, data) {
     const response = await fetch(url, {
-      method: 'POST',
+      method: "POST",
       body: JSON.stringify(data),
       headers: {
-        'Content-Type': 'application/json'
-      }
+        "Content-Type": "application/json",
+      },
     });
 
     if (!response.ok) {
-      throw new Error('Error al obtener el binary.');
+      throw new Error("Error al obtener el binary.");
     }
 
     return response.arrayBuffer();
-
   }
 
   function arrayBufferToBase64(buffer) {
-    let binary = '';
+    let binary = "";
     const bytes = new Uint8Array(buffer);
     const len = bytes.byteLength;
     for (let i = 0; i < len; i++) {
@@ -67,54 +66,52 @@
 
   function setcam(cam, binaryData) {
     const base64Data = arrayBufferToBase64(binaryData);
-    cam.src = 'data:image/jpeg;base64,' + base64Data;
+    cam.src = "data:image/jpeg;base64," + base64Data;
   }
 
   function initStream() {
     fetch("/api/v1/init_cams")
       .then((resp) => resp.json())
-      .then((state) => {
-      });
+      .then((state) => {});
   }
 
   function stopStream() {
     fetch("/api/v1/stop_cams")
       .then((resp) => resp.json())
-      .then((state) => {
-      });
+      .then((state) => {});
   }
 
   window.addEventListener("beforeunload", function (e) {
-    stopStream()
-    return                             //Webkit, Safari, Chrome
+    stopStream();
+    return; //Webkit, Safari, Chrome
   });
 
   window.addEventListener("onunload", function (e) {
-    stopStream()
-    return                             //Webkit, Safari, Chrome
+    stopStream();
+    return; //Webkit, Safari, Chrome
   });
 
   async function changeVideo(cam_index, index) {
     const cam = document.querySelector(`#cam${cam_index}`);
 
-    const format_index = index.toString().padStart(4, '0');
+    const format_index = index.toString().padStart(4, "0");
 
     fetchBinaryData("/api/v1/cam", { cam_index: cam_index, format_index: format_index })
       .then((binaryData) => {
         setcam(cam, binaryData);
       })
       .catch((error) => {
-        console.error('Error: ', error);
+        console.error("Error: ", error);
       });
 
-    await sleep(1000)
+    await sleep(1000);
 
-    changeVideo(cam_index, index + 1)
+    changeVideo(cam_index, index + 1);
   }
 
   function sleep(ms) {
-    return new Promise(resolve => setTimeout(resolve, ms));
-  };
+    return new Promise((resolve) => setTimeout(resolve, ms));
+  }
 
   function getDoorState() {
     fetch("/api/v1/door")
@@ -143,7 +140,6 @@
           divNama.style.display = "none"; // Ocultar el div
           divClear.style.display = "none"; // Ocultar el div
         }
-
       });
   }
 
@@ -182,7 +178,7 @@
     fetch("/api/v1/get_temp")
       .then((resp) => resp.json())
       .then((state) => {
-        tempImbera.textContent = state.temp + ' °C';
+        tempImbera.textContent = state.temp + " °C";
       });
     fetch("/api/v1/get_version")
       .then((resp) => resp.json())
@@ -198,11 +194,9 @@
         profileImbera.textContent = state.state_profile;
         if (state.state_profile == 1) {
           LockNama.checked = false;
+        } else if (state.state_profile == 2) {
+          LockNama.checked = true;
         }
-        else
-          if (state.state_profile == 2) {
-            LockNama.checked = true;
-          }
       });
   }
 
@@ -211,10 +205,10 @@
     fetch("/api/v1/lock", {
       method: "PUT",
       headers: {
-        "Content-Type": "application/json"
+        "Content-Type": "application/json",
       },
-      body: ""
-    })
+      body: "",
+    });
     setTimeout(() => disableBtn(LockBtn, false), 1000);
   });
 
@@ -223,10 +217,10 @@
     fetch("/api/v1/clear", {
       method: "PUT",
       headers: {
-        "Content-Type": "application/json"
+        "Content-Type": "application/json",
       },
-      body: ""
-    })
+      body: "",
+    });
     setTimeout(() => disableBtn(ClearBtn, false), 12000);
   });
 
@@ -239,11 +233,9 @@
     fetch("/api/v1/nama_change", {
       method: "PUT",
       headers: {
-        "Content-Type": "application/json"
+        "Content-Type": "application/json",
       },
-      body: JSON.stringify({value: target.checked})
-    })
+      body: JSON.stringify({ value: target.checked }),
+    });
   });
-
-})()
-
+})();

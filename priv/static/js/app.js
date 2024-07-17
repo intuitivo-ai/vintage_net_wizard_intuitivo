@@ -8,7 +8,7 @@ const signal_to_class = function (signal) {
   } else {
     return "i-sig-1";
   }
-}
+};
 
 /**
  * Adds or updates an element on one of the ssid list tables.
@@ -16,9 +16,9 @@ const signal_to_class = function (signal) {
  *   flags
  *   signal
  *   ssid
-*/
+ */
 const handle_scanned_ssid = function (data, table_id) {
-  var table = document.getElementById(table_id).getElementsByTagName('tbody')[0];
+  var table = document.getElementById(table_id).getElementsByTagName("tbody")[0];
   var row = table.getElementsByClassName(data.ssid)[0];
   if (row) {
     //todo update some stuff here maybe?
@@ -32,8 +32,8 @@ const handle_scanned_ssid = function (data, table_id) {
       row.addEventListener("click", function () {
         var wifiAddElem = document.getElementById("wifi_add");
         wifiAddElem.hidden = false;
-        var oldTbody = wifiAddElem.getElementsByTagName('tbody')[0];
-        var newTbody = document.createElement('tbody');
+        var oldTbody = wifiAddElem.getElementsByTagName("tbody")[0];
+        var newTbody = document.createElement("tbody");
 
         var ssidRow = newTbody.insertRow();
         ssidRow.innerHTML = `
@@ -119,9 +119,9 @@ const handle_scanned_ssid = function (data, table_id) {
       `;
       iconsElem.children[0].classList.add(signal_to_class(ap.signal_percent));
       return;
-    })
-  };
-}
+    });
+  }
+};
 
 const parseResponse = (response) => response.json();
 
@@ -131,25 +131,24 @@ const getAccessPoints = () => {
     .then((json) => {
       handle_scanned_ssid(json, "wifi_scan");
     });
-}
+};
 
 const save = () => {
   fetch("/api/v1/apply", {
     method: "POST",
     headers: {
-      "Content-Type": "application/json"
+      "Content-Type": "application/json",
+    },
+  }).then((response) => {
+    if (!response.ok) {
+      throw new Error("Error applying the WiFi configuration");
     }
-  })
-    .then((response) => {
-      if (!response.ok) {
-        throw new Error("Error applying the WiFi configuration");
-      }
-    });
-}
+  });
+};
 
 const addSsid = function () {
   var wifiAddElem = document.getElementById("wifi_add");
-  var config = {}
+  var config = {};
 
   // get every cell but the "add" button
   for (var i = 0; i < wifiAddElem.children[1].children.length - 1; i++) {
@@ -160,24 +159,21 @@ const addSsid = function () {
   fetch("/api/v1/configurations", {
     method: "PUT",
     headers: {
-      "Content-Type": "application/json"
+      "Content-Type": "application/json",
     },
-    body: JSON.stringify([config])
-  })
-    .then((response) => {
-      if (response.ok) {
-        handle_scanned_ssid([config], "wifi_cfg");
-      } else {
-        throw new Error("Configuration not saved");
-      }
-    });
-}
-
+    body: JSON.stringify([config]),
+  }).then((response) => {
+    if (response.ok) {
+      handle_scanned_ssid([config], "wifi_cfg");
+    } else {
+      throw new Error("Configuration not saved");
+    }
+  });
+};
 
 // Run code
 
-getAccessPoints()
+getAccessPoints();
 
 // Every 3 minutes get the access points from the backend
 setInterval(getAccessPoints, 10000);
-

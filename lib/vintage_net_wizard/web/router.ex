@@ -5,8 +5,7 @@ defmodule VintageNetWizard.Web.Router do
   use Plug.Debugger, otp_app: :vintage_net_wizard
   import Logger
 
-  # import Plug.BasicAuth
-  # plug :basic_auth, username: "admin", password: "adminadmin"
+  @combined_pattern ~r/^(\d{1,3}\.){3}\d{1,3}(,(\d{1,3}\.){3}\d{1,3})*,[a-zA-Z0-9.-]+$/
 
   plug :auth
 
@@ -24,6 +23,14 @@ defmodule VintageNetWizard.Web.Router do
   plug(VintageNetWizard.Plugs.Activity, excluding: ["/api/v1/access_points"])
   plug(:match)
   plug(:dispatch, builder_opts())
+
+  defp validate_and_split(input) when is_binary(input) do
+    if Regex.match?(@combined_pattern, input) do
+      {:ok, input}
+    else
+      {:error, "Invalid format"}
+    end
+  end
 
   ## Plug Auth usgin Plug.BasicAuth custom
   defp auth(conn, _opts) do
@@ -120,7 +127,7 @@ defmodule VintageNetWizard.Web.Router do
   end
 
   get "/networks" do
-    render_page(conn, "networks.html", opts, configuration_status: configuration_status_details())
+    render_page(conn, "networks.html", opts, configuration_status: configuration_status_details(), error_ntp: "")
   end
 
   get "/networks/new" do
@@ -146,9 +153,11 @@ defmodule VintageNetWizard.Web.Router do
   post "/ntp/new" do
     servesntp = Map.get(conn.body_params, "servesntp")
 
-    BackendServer.save_ntp(servesntp)
-
-    redirect(conn, "/")
+    case validate_and_split(servesntp) do
+      {:ok, result} -> BackendServer.save_ntp(result)
+                      redirect(conn, "/")
+      {:error, message} -> render_page(conn, "networks.html", opts, configuration_status: configuration_status_details(), error_ntp: message)
+    end
   end
 
   post "/lock/change" do

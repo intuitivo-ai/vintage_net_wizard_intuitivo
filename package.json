@@ -1,0 +1,6 @@
+{
+  "dependencies": {
+    "prettier": "^2.2.1",
+    "prettier-plugin-eex": "^0.6.0"
+  }
+}
