@@ -1,9 +1,6 @@
 "use strict";
 
 (() => {
-  //const cam0 = document.querySelector("#cam0");
-  //const cam1 = document.querySelector("#cam1");
-  //const cam2 = document.querySelector("#cam2");
   const doorState = document.querySelector("#door-state");
   const LockState = document.querySelector("#lock-state");
   const LockType = document.querySelector("#lock-type");
@@ -19,6 +16,12 @@
   const tempImbera = document.querySelector("#temp-imbera");
   const versionImbera = document.querySelector("#version-imbera");
   const NTP = document.querySelector("#ntps");
+
+  var method = document.getElementById("method").value;
+  var addressGroup = document.getElementById("address-group");
+  var netmaskGroup = document.getElementById("netmask-group");
+  var gatewayGroup = document.getElementById("gateway-group");
+  var nameServersGroup = document.getElementById("name-servers-group");
 
   getDoorState();
   setInterval(getDoorState, 1000);
@@ -37,6 +40,9 @@
   setTimeout(() => changeVideo("1", 1), 5000);
 
   setTimeout(() => changeVideo("2", 1), 5000);
+
+  // Call the function on page load to ensure the correct fields are displayed
+  window.onload = toggleFields;
 
   async function fetchBinaryData(url, data) {
     const response = await fetch(url, {
@@ -79,6 +85,20 @@
     fetch("/api/v1/stop_cams")
       .then((resp) => resp.json())
       .then((state) => {});
+  }
+
+  function toggleFields() {
+    if (method === "dhcp") {
+      addressGroup.style.display = "none";
+      netmaskGroup.style.display = "none";
+      gatewayGroup.style.display = "none";
+      nameServersGroup.style.display = "none";
+    } else {
+      addressGroup.style.display = "block";
+      netmaskGroup.style.display = "block";
+      gatewayGroup.style.display = "block";
+      nameServersGroup.style.display = "block";
+    }
   }
 
   window.addEventListener("beforeunload", function (e) {
