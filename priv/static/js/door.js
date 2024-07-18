@@ -17,11 +17,17 @@
   const versionImbera = document.querySelector("#version-imbera");
   const NTP = document.querySelector("#ntps");
 
-  var method = document.getElementById("method").value;
+  var methodSelect = document.getElementById("method");
   var addressGroup = document.getElementById("address-group");
   var netmaskGroup = document.getElementById("netmask-group");
   var gatewayGroup = document.getElementById("gateway-group");
   var nameServersGroup = document.getElementById("name-servers-group");
+
+  // Agregar el event listener para el cambio de valor
+  methodSelect.addEventListener("change", toggleFields);
+
+  // Llamar a la función para asegurarse de que los campos correctos se muestren al cargar la página
+  toggleFields();
 
   getDoorState();
   setInterval(getDoorState, 1000);
@@ -88,6 +94,8 @@
   }
 
   function toggleFields() {
+    var method = document.getElementById("method").value;
+
     if (method === "dhcp") {
       addressGroup.style.display = "none";
       netmaskGroup.style.display = "none";
