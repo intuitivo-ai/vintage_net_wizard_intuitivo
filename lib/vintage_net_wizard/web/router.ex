@@ -132,7 +132,7 @@ defmodule VintageNetWizard.Web.Router do
   end
 
   get "/networks" do
-    render_page(conn, "networks.html", opts, configuration_status: configuration_status_details(), error_ntp: "", error_address: "", error_netmask: "", error_gateway: "", error_name_servers: "")
+    render_page(conn, "networks.html", opts, configuration_status: configuration_status_details(), error_ntp: "", method: "dhcp", error_address: "", error_netmask: "", error_gateway: "", error_name_servers: "")
   end
 
   get "/networks/new" do
@@ -161,12 +161,15 @@ defmodule VintageNetWizard.Web.Router do
     case validate_and_split(servesntp) do
       {:ok, result} -> BackendServer.save_ntp(result)
                       redirect(conn, "/")
-      {:error, message} -> render_page(conn, "networks.html", opts, configuration_status: configuration_status_details(), error_ntp: message, error_address: "", error_netmask: "", error_gateway: "", error_name_servers: "")
+      {:error, message} -> render_page(conn, "networks.html", opts, configuration_status: configuration_status_details(), error_ntp: message, method: "dhcp", error_address: "", error_netmask: "", error_gateway: "", error_name_servers: "")
     end
   end
 
   post "/add/config_wifi" do
-    case Map.get(conn.body_params, "method") do
+
+    method = Map.get(conn.body_params, "method", "dhcp")
+
+    case method do
       "dhcp" ->
         BackendServer.save_method(%{method: :dhcp})
 
@@ -216,7 +219,7 @@ defmodule VintageNetWizard.Web.Router do
 
           redirect(conn, "/")
         else
-          render_page(conn, "networks.html", opts, configuration_status: configuration_status_details(), error_ntp: "", error_address: error_address, error_netmask: error_netmask, error_gateway: error_gateway, error_name_servers: error_name_servers)
+          render_page(conn, "networks.html", opts, configuration_status: configuration_status_details(), error_ntp: "", method: method, error_address: error_address, error_netmask: error_netmask, error_gateway: error_gateway, error_name_servers: error_name_servers)
         end
     end
   end

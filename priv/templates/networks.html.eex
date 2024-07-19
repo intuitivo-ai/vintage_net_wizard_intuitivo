@@ -136,8 +136,8 @@
                   <div class="form-group">
                     <label for="method">method</label>
                     <select id="method" name="method" class="custom-select js-security-select">
-                      <option value="dhcp" selected>dhcp</option>
-                      <option value="static">static</option>
+                      <option value="dhcp" <%= if method == "dhcp", do: "selected" %>>DHCP</option>
+                      <option value="static" <%= if method == "static", do: "selected" %>>Static</option>
                     </select>
                   </div>
 
