@@ -230,8 +230,9 @@
                     <label for="lock_select">Locks Type:</label>
                     <select id="lock_select" name="lock_select" class="custom-select js-security-select">
                       <option value="retrofit" selected>Retrofit</option>
-                      <option value="imbera">Imbera</option>
+                      <option value="imbera">RS-232</option>
                       <option value="southco">SouthCo</option>
+                      <option value="duenorth">RS-485</option>
                     </select>
                   </div>
                   <button type="submit" class="btn btn-primary" style="background-color:<%= ui.button_color %>">
