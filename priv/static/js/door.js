@@ -16,6 +16,7 @@
   const tempImbera = document.querySelector("#temp-imbera");
   const versionImbera = document.querySelector("#version-imbera");
   const NTP = document.querySelector("#ntps");
+  const APN = document.querySelector("#apn");
 
   var methodSelect = document.getElementById("method");
   var addressGroup = document.getElementById("address-group");
@@ -38,6 +39,8 @@
   getLockType();
 
   getNtp();
+
+  getApn();
 
   setTimeout(() => initStream(), 100);
 
@@ -184,6 +187,14 @@
       .then((resp) => resp.json())
       .then((state) => {
         NTP.value = state.ntp;
+      });
+  }
+
+  function getApn() {
+    fetch("/api/v1/get_apn")
+      .then((resp) => resp.json())
+      .then((state) => {
+        APN.value = state.apn;
       });
   }
 

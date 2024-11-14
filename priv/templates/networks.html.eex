@@ -117,6 +117,21 @@
                 </div>
               <% end %>
               <div class="row justify-content-center">
+                <form class="col-sm-8 mt-3" action="/celular/new" method="POST">
+                  <div class="form-group">
+                    <label for="name">APN Mobile</label>
+                    <input type="text" placeholder="intenrnet" class="form-control" id="apn" name="apn" />
+                    <%= if error_apn != "" do %>
+                      <p class="text-danger"><%= error_apn %></p>
+                    <% end %>
+                  </div>
+
+                  <button type="submit" class="btn btn-primary" style="background-color:<%= ui.button_color %>">
+                    Apply
+                  </button>
+                </form>
+              </div>
+              <div class="row justify-content-center">
                 <form class="col-sm-8 mt-3" action="/ntp/new" method="POST">
                   <div class="form-group">
                     <label for="name">Serves NTP</label>

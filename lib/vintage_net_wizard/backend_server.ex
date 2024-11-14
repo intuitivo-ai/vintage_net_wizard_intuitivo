@@ -135,6 +135,10 @@ defmodule VintageNetWizard.BackendServer do
     GenServer.cast(__MODULE__, {:save_ntp, ntps})
   end
 
+  def save_apn(apn) do
+    GenServer.cast(__MODULE__, {:save_apn, apn})
+  end
+
   @doc """
   Get a list of the current configurations
   """
@@ -221,6 +225,10 @@ defmodule VintageNetWizard.BackendServer do
 
   def get_door() do
     GenServer.call(__MODULE__, :get_door)
+  end
+
+  def get_apn() do
+    GenServer.call(__MODULE__, :get_apn)
   end
 
   def get_ntp() do
@@ -362,6 +370,23 @@ defmodule VintageNetWizard.BackendServer do
       ) do
 
     {:reply, state.door, state}
+  end
+
+  @impl GenServer
+  def handle_call(
+        :get_apn,
+        _from,
+          state
+      ) do
+
+    result = File.read("/root/apn.txt")
+
+    apn = case result do
+      {:ok, binary} -> binary
+      {:error, _posix} -> ""
+    end
+
+    {:reply, %{apn: apn}, state}
   end
 
   @impl GenServer
@@ -674,6 +699,16 @@ defmodule VintageNetWizard.BackendServer do
     Logger.info("New lock TYPE: #{inspect(value)}")
 
     {:noreply, %{state | lock_type_select: value, change_lock: true}}
+  end
+
+  @impl GenServer
+  def handle_cast({:save_apn, apn}, state) do
+
+    Logger.info("apn: #{inspect(apn)}")
+
+    File.write("/root/apn.txt", apn, [:write])
+
+    {:noreply, state}
   end
 
   @impl GenServer

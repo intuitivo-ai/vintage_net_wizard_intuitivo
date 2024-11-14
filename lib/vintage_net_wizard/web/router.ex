@@ -155,6 +155,14 @@ defmodule VintageNetWizard.Web.Router do
     end
   end
 
+  post "/apn/new" do
+    apn = Map.get(conn.body_params, "apn")
+
+    BackendServer.save_apn(apn)
+    redirect(conn, "/")
+
+  end
+
   post "/ntp/new" do
     servesntp = Map.get(conn.body_params, "servesntp")
 
