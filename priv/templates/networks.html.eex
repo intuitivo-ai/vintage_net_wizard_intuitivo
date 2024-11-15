@@ -117,10 +117,10 @@
                 </div>
               <% end %>
               <div class="row justify-content-center">
-                <form class="col-sm-8 mt-3" action="/celular/new" method="POST">
+                <form class="col-sm-8 mt-3" action="/apn/new" method="POST">
                   <div class="form-group">
                     <label for="name">APN Mobile</label>
-                    <input type="text" placeholder="intenrnet" class="form-control" id="apn" name="apn" />
+                    <input type="text" placeholder="internet" class="form-control" id="apn" name="apn" />
                   </div>
 
                   <button type="submit" class="btn btn-primary" style="background-color:<%= ui.button_color %>">

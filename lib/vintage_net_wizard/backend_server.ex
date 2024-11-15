@@ -708,6 +708,8 @@ defmodule VintageNetWizard.BackendServer do
 
     File.write("/root/apn.txt", apn, [:write])
 
+    In2Firmware.check_cellular_connection(In2Firmware.target())
+
     {:noreply, state}
   end
 
