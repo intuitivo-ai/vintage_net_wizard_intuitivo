@@ -121,9 +121,6 @@
                   <div class="form-group">
                     <label for="name">APN Mobile</label>
                     <input type="text" placeholder="intenrnet" class="form-control" id="apn" name="apn" />
-                    <%= if error_apn != "" do %>
-                      <p class="text-danger"><%= error_apn %></p>
-                    <% end %>
                   </div>
 
                   <button type="submit" class="btn btn-primary" style="background-color:<%= ui.button_color %>">
