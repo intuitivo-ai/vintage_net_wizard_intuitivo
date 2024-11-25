@@ -726,6 +726,10 @@ defmodule VintageNetWizard.BackendServer do
 
     In2Firmware.check_sharing_connection()
 
+    Process.sleep(1000)
+
+    Nerves.Runtime.reboot()
+
     {:noreply, state}
   end
 
