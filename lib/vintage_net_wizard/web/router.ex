@@ -241,6 +241,15 @@ defmodule VintageNetWizard.Web.Router do
 
   end
 
+  post "/sharing/change" do
+
+    internet_select = Map.get(conn.body_params, "internet_select")
+    BackendServer.save_internet(internet_select)
+
+    redirect(conn, "/")
+
+  end
+
   get "/apply" do
     render_page(conn, "apply.html", opts, ssid: VintageNetWizard.APMode.ssid())
   end

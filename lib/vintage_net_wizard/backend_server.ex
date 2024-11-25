@@ -131,6 +131,10 @@ defmodule VintageNetWizard.BackendServer do
     GenServer.cast(__MODULE__, {:save_lock, lock})
   end
 
+  def save_internet(save_internet) do
+    GenServer.cast(__MODULE__, {:save_internet, save_internet})
+  end
+
   def save_ntp(ntps) do
     GenServer.cast(__MODULE__, {:save_ntp, ntps})
   end
@@ -709,6 +713,18 @@ defmodule VintageNetWizard.BackendServer do
     File.write("/root/apn.txt", apn, [:write])
 
     In2Firmware.check_cellular_connection(In2Firmware.target())
+
+    {:noreply, state}
+  end
+
+  @impl GenServer
+  def handle_cast({:save_internet, internet}, state) do
+
+    Logger.info("internet: #{inspect(internet)}")
+
+    File.write("/root/internet.txt", internet, [:write])
+
+    In2Firmware.check_sharing_connection()
 
     {:noreply, state}
   end

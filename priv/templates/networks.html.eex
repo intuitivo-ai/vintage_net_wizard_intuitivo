@@ -117,6 +117,21 @@
                 </div>
               <% end %>
               <div class="row justify-content-center">
+                <form class="col-sm-8 mt-3" action="/sharing/change" method="POST">
+                  <div class="form-group">
+                    <label for="internet_select">Sharing internet to eth</label>
+                    <select id="internet_select" name="internet_select" class="custom-select js-security-select">
+                      <option value="disabled" selected>disabled</option>
+                      <option value="wwan0">wwan0</option>
+                      <option value="wlan0">wlan0</option>
+                    </select>
+                  </div>
+                  <button type="submit" class="btn btn-primary" style="background-color:<%= ui.button_color %>">
+                    Apply
+                  </button>
+                </form>
+              </div>
+              <div class="row justify-content-center">
                 <form class="col-sm-8 mt-3" action="/apn/new" method="POST">
                   <div class="form-group">
                     <label for="name">APN Mobile</label>
