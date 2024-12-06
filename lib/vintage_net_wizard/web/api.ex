@@ -15,6 +15,10 @@ defmodule VintageNetWizard.Web.Api do
   plug(:match)
   plug(:dispatch)
 
+  get "/status" do
+    send_resp(conn, 200, "")
+  end
+
   get "/door" do
     send_json(conn, 200, Jason.encode!(BackendServer.get_door()))
   end
