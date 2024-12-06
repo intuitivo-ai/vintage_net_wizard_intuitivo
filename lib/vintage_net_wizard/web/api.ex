@@ -2,6 +2,9 @@ defmodule VintageNetWizard.Web.Api do
   @moduledoc false
   import Logger
 
+  @combined_pattern ~r/^((\d{1,3}\.){3}\d{1,3}|[a-zA-Z0-9.-]+)(,((\d{1,3}\.){3}\d{1,3}|[a-zA-Z0-9.-]+))*$/
+  @ip_regex ~r/^(25[0-5]|2[0-4][0-9]|1[0-9]{2}|[1-9]?[0-9])\.(25[0-5]|2[0-4][0-9]|1[0-9]{2}|[1-9]?[0-9])\.(25[0-5]|2[0-4][0-9]|1[0-9]{2}|[1-9]?[0-9])\.(25[0-5]|2[0-4][0-9]|1[0-9]{2}|[1-9]?[0-9])$/
+
   use Plug.Router
 
   alias Plug.Conn
@@ -194,6 +197,49 @@ defmodule VintageNetWizard.Web.Api do
 
   end
 
+  post "/add/config_wifi" do
+    method = conn
+    |> get_body()
+    |> Map.get("method", "dhcp")
+
+    case method do
+      "dhcp" ->
+        BackendServer.save_method(%{method: :dhcp})
+        send_json(conn, 200, "")
+
+      "static" ->
+        address = Map.get(conn.body_params, "address")
+        netmask = Map.get(conn.body_params, "netmask")
+        gateway = Map.get(conn.body_params, "gateway")
+        name_servers = Map.get(conn.body_params, "name_servers")
+
+        errors = %{}
+        |> maybe_add_error("address", address, &valid_ip?/1)
+        |> maybe_add_error("netmask", netmask, &valid_ip?/1)
+        |> maybe_add_error("gateway", gateway, &valid_ip?/1)
+        |> maybe_add_name_servers_error("name_servers", name_servers)
+
+        if Enum.empty?(errors) do
+          BackendServer.save_method(%{
+            method: :static,
+            address: address,
+            netmask: netmask,
+            gateway: gateway,
+            name_servers: String.split(name_servers, ",")
+          })
+
+          send_json(conn, 200, "")
+        else
+          json = Jason.encode!(%{
+            error: "validation_error",
+            message: "One or more fields have validation errors",
+            errors: errors
+          })
+          send_json(conn, 400, json)
+        end
+    end
+  end
+
   post "/apply" do
     case BackendServer.apply() do
       :ok ->
@@ -292,6 +338,33 @@ defmodule VintageNetWizard.Web.Api do
     conn
     |> put_resp_content_type("image/jpeg")
     |> send_resp(status_code, binary)
+  end
+
+  defp valid_ip?(ip) when is_binary(ip) do
+    Regex.match?(@ip_regex, ip)
+  end
+
+  defp validate_and_split(input) when is_binary(input) do
+    if Regex.match?(@combined_pattern, input) do
+      {:ok, input}
+    else
+      {:error, "Invalid format"}
+    end
+  end
+
+  defp maybe_add_error(errors, field, value, validator) do
+    if validator.(value) do
+      errors
+    else
+      Map.put(errors, field, "Invalid Format")
+    end
+  end
+
+  defp maybe_add_name_servers_error(errors, field, value) do
+    case validate_and_split(value) do
+      {:ok, _result} -> errors
+      {:error, message} -> Map.put(errors, field, message)
+    end
   end
 
 end

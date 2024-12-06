@@ -25,6 +25,7 @@
 * [Clear Operations](#clear-operations)
 * [Change Lock Type](#change-lock-type)
 * [Change Internet Sharing](#change-internet-sharing)
+* [Configure WiFi Method](#configure-wifi-method)
 
 ### Get status
 
@@ -593,6 +594,57 @@ If no internet_select is provided, the endpoint will return with a `400` status:
 }
 ```
 
+### Configure WiFi Method
+
+Configure the WiFi connection method (DHCP or Static IP).
+
+Path: `/api/v1/add/config_wifi`
+
+Method: `POST`
+
+Request: `WiFiMethodConfiguration`
+
+Response: Empty
+
+Response Code: `200`
+
+#### Request Example (DHCP)
+
+```json
+{
+  "method": "dhcp"
+}
+```
+
+#### Request Example (Static)
+
+```json
+{
+  "method": "static",
+  "address": "192.168.1.100",
+  "netmask": "255.255.255.0",
+  "gateway": "192.168.1.1",
+  "name_servers": "8.8.8.8,8.8.4.4"
+}
+```
+
+#### Errors
+
+If there are validation errors with the static IP configuration, the endpoint will return with a `400` status:
+
+```json
+{
+  "error": "validation_error",
+  "message": "One or more fields have validation errors",
+  "errors": {
+    "address": "Invalid Format",
+    "netmask": "Invalid Format",
+    "gateway": "Invalid Format",
+    "name_servers": "Invalid format"
+  }
+}
+```
+
 ## Types
 
 ### AccessPoint
@@ -787,5 +839,19 @@ This specifies the internet sharing configuration.
 ```s
 {
   "internet_select": String  // The internet sharing mode to use
+}
+```
+
+### WiFiMethodConfiguration
+
+This specifies the WiFi connection method and its configuration parameters.
+
+```s
+{
+  "method": String,        // "dhcp" or "static"
+  "address": String,       // Required for static, IP address in format "xxx.xxx.xxx.xxx"
+  "netmask": String,      // Required for static, netmask in format "xxx.xxx.xxx.xxx"
+  "gateway": String,      // Required for static, gateway in format "xxx.xxx.xxx.xxx"
+  "name_servers": String  // Required for static, comma-separated list of DNS servers
 }
 ```
