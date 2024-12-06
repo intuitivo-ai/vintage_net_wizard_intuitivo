@@ -2,6 +2,7 @@
 
 ## Endpoints
 
+* [Get Status](#get-status)
 * [Get Access Points](#get-access-points)
 * [Configure SSID Priority](#configure-ssid-priority)
 * [Configure an SSID](#configure-an-ssid)
@@ -10,6 +11,37 @@
 * [Get Configuration Status](#get-configuration-status)
 * [Apply](#apply)
 * [Complete the Configuration Process](#complete-the-configuration-process)
+* [Get lock type](#get-lock-type)
+* [Get Version](#get-version)
+* [Get Temperature](#get-temperature)
+* [Get Profile State](#get-profile-state)
+* [Get NAMA State](#get-nama-state)
+* [Get APN Configuration](#get-apn-configuration)
+* [Get NTP Configuration](#get-ntp-configuration)
+* [Get Imbera State](#get-imbera-state)
+* [Get Lock Status](#get-lock-status)
+* [Get Door Status](#get-door-status)
+* [Change NAMA Mode](#change-nama-mode)
+* [Clear Operations](#clear-operations)
+* [Change Lock Type](#change-lock-type)
+* [Change Internet Sharing](#change-internet-sharing)
+
+### Get status
+
+This request returns a 200.
+
+Path: `/api/v1/status`
+
+Method: `GET`
+
+Response: Array AccessPoint
+
+Response Code: `200`
+
+#### Response
+
+```
+```
 
 ### Get access points
 
@@ -234,6 +266,333 @@ Response: Empty
 
 Response Code: `202`
 
+### Get lock type
+
+Get the current lock type configuration.
+
+Path: `/api/v1/lock_type`
+
+Method: `GET`
+
+Request: Empty
+
+Response: `LockType`
+
+Response Code: `200`
+
+#### Response Example
+
+```json
+{
+  "lock_type": "retrofit"
+}
+```
+
+### Get Version
+
+Get the current firmware version information.
+
+Path: `/api/v1/get_version`
+
+Method: `GET`
+
+Request: Empty
+
+Response: `Version`
+
+Response Code: `200`
+
+#### Response Example
+
+```json
+{
+  "version": "1.2.3"
+}
+```
+
+### Get Temperature
+
+Get the current temperature reading from the system.
+
+Path: `/api/v1/get_temp`
+
+Method: `GET`
+
+Request: Empty
+
+Response: `Temperature`
+
+Response Code: `200`
+
+#### Response Example
+
+```json
+{
+  "temp": 23.5
+}
+```
+
+### Get Profile State
+
+Get the current profile state of the system. The profile state indicates which operating mode/profile is currently active (e.g. 1 for standard mode, 2 for NAMA mode).
+
+Path: `/api/v1/state_profile`
+
+Method: `GET`
+
+Request: Empty
+
+Response: `ProfileState`
+
+Response Code: `200`
+
+#### Response Example
+
+```json
+{
+  "state_profile": 1
+}
+```
+
+### Get NAMA State
+
+Get the current NAMA state of the system. This indicates whether NAMA mode is on, off, or in an unknown state.
+
+Path: `/api/v1/state_nama`
+
+Method: `GET`
+
+Request: Empty
+
+Response: `NAMAState`
+
+Response Code: `200`
+
+#### Response Example
+
+```json
+{
+  "state_nama": "on"
+}
+```
+
+### Get APN Configuration
+
+Get the current APN (Access Point Name) configuration used for cellular connectivity.
+
+Path: `/api/v1/get_apn`
+
+Method: `GET`
+
+Request: Empty
+
+Response: `APNConfiguration`
+
+Response Code: `200`
+
+#### Response Example
+
+```json
+{
+  "apn": "internet.carrier.com"
+}
+```
+
+### Get NTP Configuration
+
+Get the current NTP (Network Time Protocol) server configuration.
+
+Path: `/api/v1/get_ntp`
+
+Method: `GET`
+
+Request: Empty
+
+Response: `NTPConfiguration`
+
+Response Code: `200`
+
+#### Response Example
+
+```json
+{
+  "ntp": "pool.ntp.org,time.google.com"
+}
+```
+
+### Get Imbera State
+
+Get the current state of the Imbera system. This indicates whether the system is in an "ok" or "error" state.
+
+Path: `/api/v1/state_imbera`
+
+Method: `GET`
+
+Request: Empty
+
+Response: `ImberaState`
+
+Response Code: `200`
+
+#### Response Example
+
+```json
+{
+  "state_imbera": "ok"
+}
+```
+
+### Get Lock Status
+
+Get the current status of the lock system.
+
+Path: `/api/v1/status_lock`
+
+Method: `GET`
+
+Request: Empty
+
+Response: `LockStatus`
+
+Response Code: `200`
+
+#### Response Example
+
+```json
+{
+  "lock": "closed"
+}
+```
+
+### Get Door Status
+
+Get the current status of the door.
+
+Path: `/api/v1/status_door`
+
+Method: `GET`
+
+Request: Empty
+
+Response: `DoorStatus`
+
+Response Code: `200`
+
+#### Response Example
+
+```json
+{
+  "door": "closed"
+}
+```
+
+### Change NAMA Mode
+
+Change the NAMA mode activation state.
+
+Path: `/api/v1/nama_change`
+
+Method: `PUT`
+
+Request: `NAMAChangeRequest`
+
+Response: Empty
+
+Response Code: `204`
+
+#### Request Example
+
+```json
+{
+  "value": true
+}
+```
+
+### Clear Operations
+
+Initialize transaction operations. This endpoint clears the current operation state.
+
+Path: `/api/v1/clear_nama_operator`
+
+Method: `PUT`
+
+Request: Empty
+
+Response: Empty
+
+Response Code: `204`
+
+#### Response Example
+
+```json
+```
+
+### Change Lock Type
+
+Change the type of lock system to use.
+
+Path: `/api/v1/lock/change`
+
+Method: `POST`
+
+Request: `LockChangeRequest`
+
+Response: Empty
+
+Response Code: `200`
+
+#### Request Example
+
+```json
+{
+  "lock_select": "retrofit"
+}
+```
+
+#### Errors
+
+If no lock_select is provided, the endpoint will return with a `400` status:
+
+```json
+{
+  "error": "lock_select_required",
+  "message": "A lock_select value is required."
+}
+```
+
+### Change Internet Sharing
+
+Configure the internet sharing settings.
+
+Path: `/api/v1/sharing/change`
+
+Method: `POST`
+
+Request: `InternetSharingRequest`
+
+Response: Empty
+
+Response Code: `200`
+
+#### Errors
+
+If no internet_select is provided, the endpoint will return with a `400` status:
+
+```json
+{
+  "error": "interface_select_required",
+  "message": "A interface_select value is required."
+}
+```
+
+#### Request Example
+
+```json
+{
+  "internet_select": "wifi"
+}
+```
+
 ## Types
 
 ### AccessPoint
@@ -299,4 +658,134 @@ needed.
 not_configured - No configuration attempts have taken place
 good - A configuration was applied and is working
 bad - A configuration was applied and is not working
+```
+
+### LockType
+
+This specifies the type of lock that is currently configured in the system.
+
+```s
+{
+  "lock_type": String  // The type of lock, e.g. "retrofit", "nama", etc.
+}
+```
+
+### Version
+
+This specifies the current firmware version of the system.
+
+```s
+{
+  "version": String  // The version string of the firmware
+}
+```
+
+### Temperature
+
+This specifies the current temperature reading from the system.
+
+```s
+{
+  "temp": Number  // The temperature value, can be NaN if no reading is available
+}
+```
+
+### ProfileState
+
+This specifies the current operating profile of the system.
+
+```s
+{
+  "state_profile": Number  // The profile number (1 = standard mode, 2 = NAMA mode)
+}
+```
+
+### NAMAState
+
+This specifies the current state of the NAMA system.
+
+```s
+{
+  "state_nama": String  // The NAMA state ("on", "off", or "unknown")
+}
+```
+
+### APNConfiguration
+
+This specifies the APN configuration for cellular connectivity.
+
+```s
+{
+  "apn": String  // The APN string, empty string if not configured
+}
+```
+
+### NTPConfiguration
+
+This specifies the NTP server configuration.
+
+```s
+{
+  "ntp": String  // Comma-separated list of NTP servers, empty string if not configured
+}
+```
+
+### ImberaState
+
+This specifies the current state of the Imbera system.
+
+```s
+{
+  "state_imbera": String  // The Imbera state ("ok" or "error")
+}
+```
+
+### LockStatus
+
+This specifies the current status of the lock.
+
+```s
+{
+  "lock": String  // The lock status ("open" or "closed")
+}
+```
+
+### DoorStatus
+
+This specifies the current status of the door.
+
+```s
+{
+  "door": String  // The door status ("open" or "closed")
+}
+```
+
+### NAMAChangeRequest
+
+This specifies whether to activate or deactivate NAMA mode.
+
+```s
+{
+  "value": Boolean  // true to activate NAMA mode, false to deactivate
+}
+```
+
+### LockChangeRequest
+
+This specifies which type of lock system to use.
+
+```s
+{
+  "lock_select": String  // The lock type to use (e.g. "retrofit", "nama", etc.)
+}
+```
+
+### InternetSharingRequest
+
+This specifies the internet sharing configuration.
+
+```s
+{
+  "internet_select": String  // The internet sharing mode to use
+}
 ```

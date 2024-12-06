@@ -19,7 +19,7 @@ defmodule VintageNetWizard.Web.Api do
     send_resp(conn, 200, "")
   end
 
-  get "/door" do
+  get "/status_door" do
     send_json(conn, 200, Jason.encode!(BackendServer.get_door()))
   end
 
@@ -81,7 +81,7 @@ defmodule VintageNetWizard.Web.Api do
     send_json(conn, 204, "")
   end
 
-  put "/clear" do
+  put "/clear_nama_operator" do
 
     #Lock.open_lock("operator")
     Operations.init_trx_op()
@@ -156,6 +156,43 @@ defmodule VintageNetWizard.Web.Api do
 
   end
 
+  post "/lock/change" do
+    result = conn
+    |> get_body()
+    |> Map.get("lock_select")
+
+    case result do
+      nil ->
+        json = Jason.encode!(%{
+          error: "lock_select_required",
+          message: "A lock_select value is required."
+        })
+        send_json(conn, 400, json)
+      lock_select ->
+        BackendServer.save_lock(lock_select)
+        send_json(conn, 200, "")
+    end
+  end
+
+  post "/sharing/change" do
+
+    result = conn
+    |> get_body()
+    |> Map.get("internet_select")
+
+    case result do
+      nil ->
+        json = Jason.encode!(%{
+          error: "interface_select_required",
+          message: "A interface_select value is required."
+        })
+        send_json(conn, 400, json)
+        internet_select ->
+        BackendServer.save_internet(internet_select)
+        send_json(conn, 200, "")
+    end
+
+  end
 
   post "/apply" do
     case BackendServer.apply() do
