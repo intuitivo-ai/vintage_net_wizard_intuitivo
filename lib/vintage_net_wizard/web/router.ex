@@ -16,6 +16,8 @@ defmodule VintageNetWizard.Web.Router do
     WiFiConfiguration
   }
 
+  alias VintageNetWizard.Web.{Api, ApiV2}
+
   plug(Plug.Static, from: {:vintage_net_wizard, "priv/static"}, at: "/")
   plug(Plug.Parsers, parsers: [Plug.Parsers.URLENCODED, :json], json_decoder: Jason)
   # This route is polled by the front end to update its list of access points.
@@ -268,7 +270,8 @@ defmodule VintageNetWizard.Web.Router do
     render_page(conn, "complete.html", opts)
   end
 
-  forward("/api/v1", to: VintageNetWizard.Web.Api)
+  forward("/api/v1", to: Api)
+  forward("/api/v2", to: ApiV2)
 
   match _ do
     send_resp(conn, 404, "oops")
