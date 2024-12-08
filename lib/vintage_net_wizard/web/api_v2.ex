@@ -444,6 +444,24 @@ defmodule VintageNetWizard.Web.ApiV2 do
     }}
   end
 
+  defp error_details({:error, :missing_state}) do
+    {400, %{
+      error: "validation_error",
+      code: "MISSING_STATE",
+      message: "desired_state is required",
+      timestamp: DateTime.utc_now() |> DateTime.to_iso8601()
+    }}
+  end
+
+  defp error_details({:error, :invalid_state}) do
+    {400, %{
+      error: "validation_error",
+      code: "INVALID_STATE",
+      message: "desired_state must be either 'locked' or 'unlocked'",
+      timestamp: DateTime.utc_now() |> DateTime.to_iso8601()
+    }}
+  end
+
   # Add more error_details clauses as needed
 
   defp get_body(%Conn{body_params: %{"_json" => body}}), do: body
