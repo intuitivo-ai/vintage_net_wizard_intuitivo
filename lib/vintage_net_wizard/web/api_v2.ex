@@ -289,11 +289,11 @@ defmodule VintageNetWizard.Web.ApiV2 do
         "timestamp": "2024-03-20T15:30:00Z"
       }
   """
-  put "/lock-type" do
-    valid_types = ["retrofit", "imbera", "southco"]
+  @valid_lock_types ["retrofit", "imbera", "southco"]
 
+  put "/lock-type" do
     case get_body(conn) do
-      %{"lockType" => lock_type} when lock_type in valid_types ->
+      %{"lockType" => lock_type} when lock_type in @valid_lock_types ->
         BackendServer.save_lock(lock_type)
 
         response = %{
