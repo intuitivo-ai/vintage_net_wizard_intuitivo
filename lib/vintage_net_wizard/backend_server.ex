@@ -10,6 +10,26 @@ defmodule VintageNetWizard.BackendServer do
 
   defmodule State do
     @moduledoc false
+
+    @type t :: %__MODULE__{
+      subscriber: pid() | nil,
+      backend: module() | nil,
+      backend_state: term() | nil,
+      configurations: map(),
+      device_info: list(),
+      ap_ifname: String.t() | nil,
+      ifname: String.t() | nil,
+      internet_select: String.t() | nil,
+      state_nama: %{enabled: boolean()},
+      state_profile: %{profile: String.t()},
+      init_cam: boolean(),
+      door: %{door: boolean(), timestamp: String.t()},
+      lock: %{lock: boolean(), working: boolean(), timestamp: String.t()},
+      lock_type: %{lock_type_select: String.t()},
+      apn: String.t(),
+      ntp: String.t()
+    }
+
     defstruct subscriber: nil,
               backend: nil,
               backend_state: nil,
@@ -17,19 +37,15 @@ defmodule VintageNetWizard.BackendServer do
               device_info: [],
               ap_ifname: nil,
               ifname: nil,
-              lock: false,
-              door: %{},
-              status_lock: %{},
-              lock_type: %{},
-              state_imbera: %{},
-              state_nama: %{},
-              state_profile: %{},
-              temp: %{},
-              version: %{},
+              internet_select: "wifi",
+              state_nama: %{enabled: false},
+              state_profile: %{profile: ""},
               init_cam: false,
-              stop_cam: false,
-              lock_type_select: "",
-              change_lock: false
+              door: %{door: false, timestamp: nil},
+              lock: %{lock: false, working: true, timestamp: nil},
+              lock_type: %{lock_type_select: "retrofit"},
+              apn: "",
+              ntp: ""
   end
 
   @spec child_spec(any(), any(), keyword()) :: map()
@@ -113,8 +129,7 @@ defmodule VintageNetWizard.BackendServer do
   end
 
   @doc """
-  Save a network configuration to the backend
-
+  Save a network configuration to the backend.
   The network configuration is a map that can be included in the `:network`
   field of a `VintageNetWiFi` configuration.
   """
@@ -154,7 +169,7 @@ defmodule VintageNetWizard.BackendServer do
   @doc """
   Get the current configuration status
   """
-  @spec configuration_status() :: any()
+  @spec configuration_status() :: :good | :bad | :not_configured
   def configuration_status() do
     GenServer.call(__MODULE__, :configuration_status)
   end
@@ -333,7 +348,12 @@ defmodule VintageNetWizard.BackendServer do
           state
       ) do
 
-    {:reply, state.status_lock, state}
+    response = %{
+      lock: state.lock.lock,
+      working: state.lock.working,
+      timestamp: DateTime.utc_now() |> DateTime.to_iso8601()
+    }
+    {:reply, response, state}
   end
 
   @impl GenServer
@@ -383,12 +403,7 @@ defmodule VintageNetWizard.BackendServer do
           state
       ) do
 
-    result = File.read("/root/apn.txt")
-
-    apn = case result do
-      {:ok, binary} -> binary
-      {:error, _posix} -> ""
-    end
+    apn = read_file("/root/apn.txt")
 
     {:reply, %{apn: apn}, state}
   end
@@ -856,5 +871,270 @@ defmodule VintageNetWizard.BackendServer do
         :ok
       end
     end
+  end
+
+  def get_internet do
+    GenServer.call(__MODULE__, :get_internet)
+  end
+
+  def save_internet(internet_select) do
+    GenServer.call(__MODULE__, {:save_internet, internet_select})
+  end
+
+  def get_state_nama do
+    GenServer.call(__MODULE__, :get_state_nama)
+  end
+
+  def get_state_profile do
+    GenServer.call(__MODULE__, :get_state_profile)
+  end
+
+  def set_init_cam(value) do
+    GenServer.call(__MODULE__, {:set_init_cam, value})
+  end
+
+  def get_door do
+    GenServer.call(__MODULE__, :get_door)
+  end
+
+  def get_lock do
+    GenServer.call(__MODULE__, :get_lock)
+  end
+
+  def get_lock_type do
+    GenServer.call(__MODULE__, :get_lock_type)
+  end
+
+  def change_lock(should_lock) do
+    GenServer.call(__MODULE__, {:change_lock, should_lock})
+  end
+
+  def save_lock(lock_type) do
+    GenServer.call(__MODULE__, {:save_lock, lock_type})
+  end
+
+  def get_apn do
+    GenServer.call(__MODULE__, :get_apn)
+  end
+
+  def save_apn(apn) do
+    GenServer.call(__MODULE__, {:save_apn, apn})
+  end
+
+  def get_ntp do
+    GenServer.call(__MODULE__, :get_ntp)
+  end
+
+  def save_ntp(ntp) do
+    GenServer.call(__MODULE__, {:save_ntp, ntp})
+  end
+
+  def handle_call(:get_internet, _from, state) do
+    {:reply, state.internet_select, state}
+  end
+
+  def handle_call({:save_internet, internet_select}, _from, state) do
+    new_state = %{state | internet_select: internet_select}
+    {:reply, :ok, new_state}
+  end
+
+  def handle_call(:get_state_nama, _from, state) do
+    {:reply, state.state_nama, state}
+  end
+
+  def handle_call(:get_state_profile, _from, state) do
+    {:reply, state.state_profile, state}
+  end
+
+  def handle_call({:set_init_cam, value}, _from, state) do
+    new_state = %{state | init_cam: value}
+    {:reply, :ok, new_state}
+  end
+
+  def handle_call(:get_door, _from, state) do
+    {:reply, state.door, state}
+  end
+
+  def handle_call(:get_lock, _from, state) do
+    {:reply, state.lock, state}
+  end
+
+  def handle_call(:get_lock_type, _from, state) do
+    {:reply, state.lock_type, state}
+  end
+
+  def handle_call({:change_lock, should_lock}, _from, state) do
+    new_state = %{state | lock: %{
+      state.lock |
+      lock: should_lock,
+      timestamp: DateTime.utc_now() |> DateTime.to_iso8601()
+    }}
+    {:reply, :ok, new_state}
+  end
+
+  def handle_call({:save_lock, lock_type}, _from, state) do
+    case validate_lock_type(lock_type) do
+      {:ok, validated_type} ->
+        new_state = %{state | lock_type: %{state.lock_type | lock_type_select: validated_type}}
+        {:reply, :ok, new_state}
+      {:error, _} = error ->
+        {:reply, error, state}
+    end
+  end
+
+  def handle_call({:save_internet, internet_type}, _from, state) do
+    case validate_internet_type(internet_type) do
+      {:ok, validated_type} ->
+        new_state = %{state | internet_select: validated_type}
+        {:reply, :ok, new_state}
+      {:error, _} = error ->
+        {:reply, error, state}
+    end
+  end
+
+  def handle_call(:get_apn, _from, state) do
+    apn = read_file("/root/apn.txt")
+    {:reply, %{apn: apn}, state}
+  end
+
+  def handle_call({:save_apn, apn}, _from, state) do
+    case write_file("/root/apn.txt", apn) do
+      :ok ->
+        In2Firmware.check_cellular_connection(In2Firmware.target())
+        {:reply, :ok, %{state | apn: apn}}
+      error ->
+        {:reply, error, state}
+    end
+  end
+
+  defp read_file(path, default \\ "") do
+    case File.read(path) do
+      {:ok, content} -> String.trim(content)
+      {:error, _} -> default
+    end
+  end
+
+  defp write_file(path, content) do
+    case File.write(path, content, [:write]) do
+      :ok -> :ok
+      {:error, reason} ->
+        Logger.error("Failed to write to #{path}: #{inspect(reason)}")
+        {:error, reason}
+    end
+  end
+
+  defp validate_lock_type(type) when type in ["retrofit", "imbera", "southco"], do: {:ok, type}
+  defp validate_lock_type(_), do: {:error, :invalid_lock_type}
+
+  defp validate_internet_type(type) when type in ["wifi", "ethernet"], do: {:ok, type}
+  defp validate_internet_type(_), do: {:error, :invalid_internet_type}
+
+  @doc """
+  Gets the current lock status.
+
+  Returns a map containing:
+  - lock: boolean indicating if locked
+  - working: boolean indicating if lock is functioning
+  """
+  @spec get_lock() :: %{lock: boolean(), working: boolean(), timestamp: String.t()}
+  def get_lock() do
+    GenServer.call(__MODULE__, :get_lock)
+  end
+
+  @doc """
+  Get complete board configuration
+  """
+  @spec get_board_config() :: map()
+  def get_board_config() do
+    GenServer.call(__MODULE__, :get_board_config)
+  end
+
+  def handle_call(:get_board_config, _from, state) do
+    config = %{
+      lockType: state.lock_type.lock_type_select,
+      wifi: %{
+        networks: get_wifi_networks(state),
+        method: get_network_method(),
+        static_config: get_static_config()
+      },
+      mobileNetwork: %{
+        apn: state.apn
+      },
+      hotspotOutput: state.internet_select || "wifi",
+      nama: %{
+        enabled: state.state_nama.enabled || false,
+        profile: state.state_profile.profile || ""
+      },
+      ntp: state.ntp
+    }
+    {:reply, config, state}
+  end
+
+  # Helper functions for board config
+  defp get_wifi_networks(state) do
+    state.configurations
+    |> Map.values()
+    |> Enum.map(fn config ->
+      %{
+        ssid: config.ssid,
+        password: config[:psk] || ""
+      }
+    end)
+  end
+
+  defp get_network_method() do
+    case read_file("/root/method.txt") do
+      "static" -> "static"
+      _ -> "dhcp"
+    end
+  end
+
+  defp get_static_config() do
+    case get_network_method() do
+      "static" ->
+        addresses = VintageNet.get(["interface", "wlan0", "addresses"])
+        first_addr = List.first(addresses) || %{}
+        %{
+          address: Map.get(first_addr, :address, ""),
+          netmask: Map.get(first_addr, :netmask, ""),
+          gateway: VintageNet.get(["interface", "wlan0", "gateway"]) || "",
+          name_servers: read_file("/root/ntps.txt", "")
+        }
+      _ -> nil
+    end
+  end
+
+  @doc """
+  Get camera statuses
+  """
+  @spec get_cameras(String.t()) :: [map()]
+  def get_cameras(device_ip) do
+    [
+      %{
+        id: "cam1",
+        name: "Front Camera",
+        status: if(File.exists?("/root/cam1/frame1.jpg"), do: "online", else: "offline"),
+        streamUrl: "rtsp://#{device_ip}:8554/cam1"
+      },
+      %{
+        id: "cam2",
+        name: "Back Camera",
+        status: if(File.exists?("/root/cam2/frame1.jpg"), do: "online", else: "offline"),
+        streamUrl: "rtsp://#{device_ip}:8554/cam2"
+      }
+    ]
+  end
+
+  @doc """
+  Initialize cameras
+  """
+  @spec init_cameras() :: :ok
+  def init_cameras() do
+    GenServer.call(__MODULE__, :init_cameras)
+  end
+
+  def handle_call(:init_cameras, _from, state) do
+    new_state = %{state | init_cam: true}
+    {:reply, :ok, new_state}
   end
 end
