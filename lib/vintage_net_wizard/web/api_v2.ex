@@ -29,12 +29,20 @@ defmodule VintageNetWizard.Web.ApiV2 do
       }
   """
   get "/health" do
-    mac_address = VintageNet.get(["interface", "wlan0", "mac_address"]) || "unknown"
-    firmware_version = Nerves.Runtime.KV.get_active("nerves_fw_version") || "unknown"
+    device_info = BackendServer.device_info()
+
+    # Extract values from the device_info list
+    mac_address = device_info
+                 |> Enum.find(fn {label, _} -> label == "WiFi Address" end)
+                 |> elem(1)
+
+    firmware_version = device_info
+                      |> Enum.find(fn {label, _} -> label == "Firmware version" end)
+                      |> elem(1)
 
     send_json(conn, 200, %{
       status: "ok",
-      version: BackendServer.get_version(),
+      version: "2.0.0",
       mac_address: mac_address,
       firmware_version: firmware_version,
       timestamp: DateTime.utc_now() |> DateTime.to_iso8601()

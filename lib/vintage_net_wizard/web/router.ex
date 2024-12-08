@@ -8,7 +8,7 @@ defmodule VintageNetWizard.Web.Router do
   use Plug.Debugger, otp_app: :vintage_net_wizard
   import Logger
 
-  plug :auth
+  #plug :auth
 
   alias VintageNetWizard.{
     BackendServer,
@@ -18,7 +18,7 @@ defmodule VintageNetWizard.Web.Router do
 
   alias VintageNetWizard.Web.{Api, ApiV2}
 
-  plug(Plug.Static, from: {:vintage_net_wizard, "priv/static"}, at: "/")
+  #plug(Plug.Static, from: {:vintage_net_wizard, "priv/static"}, at: "/")
   plug(Plug.Parsers, parsers: [Plug.Parsers.URLENCODED, :json], json_decoder: Jason)
   # This route is polled by the front end to update its list of access points.
   # This can mean the user could potentially have the page open without knowing

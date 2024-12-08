@@ -14,6 +14,7 @@ defmodule VintageNetWizard.Web.Api do
   alias In2Firmware.Services.Operations
   alias In2Firmware.Services.Lock
 
+  plug(Plug.Static, from: {:vintage_net_wizard, "priv/static"}, at: "/")
   plug(Plug.Parsers, parsers: [:json], json_decoder: Jason)
   plug(:match)
   plug(:dispatch)
