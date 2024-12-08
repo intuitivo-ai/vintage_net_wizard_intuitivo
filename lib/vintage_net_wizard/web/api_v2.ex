@@ -112,8 +112,6 @@ defmodule VintageNetWizard.Web.ApiV2 do
   get "/door" do
     door_status = BackendServer.get_door()
 
-    Logger.info("door_status: #{inspect(door_status)}")
-
     response = %{
       status: door_status["door"],
       lastChanged: door_status["timestamp"]
