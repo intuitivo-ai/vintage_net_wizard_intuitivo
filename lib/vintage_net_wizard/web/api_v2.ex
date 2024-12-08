@@ -25,6 +25,8 @@ defmodule VintageNetWizard.Web.ApiV2 do
 
   use Plug.Router
 
+  require Logger
+
   @valid_lock_types ["retrofit", "imbera", "southco"]
 
   alias Plug.Conn
@@ -109,6 +111,8 @@ defmodule VintageNetWizard.Web.ApiV2 do
 
   get "/door" do
     door_status = BackendServer.get_door()
+
+    Logger.info("door_status: #{inspect(door_status)}")
 
     response = %{
       status: door_status["door"],
