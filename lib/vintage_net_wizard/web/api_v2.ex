@@ -125,10 +125,10 @@ defmodule VintageNetWizard.Web.ApiV2 do
     lock_type = BackendServer.get_lock_type()
 
     response = %{
-      status: if(lock_status.lock, do: "locked", else: "unlocked"),
-      lastChanged: lock_status.timestamp,
-      type: lock_type.lock_type_select,
-      isWorking: lock_status.working
+      status: lock_status["lock"],
+      lastChanged: lock_status["timestamp"],
+      type: lock_type["lock_type"],
+      isWorking: true
     }
 
     send_json(conn, 200, response)

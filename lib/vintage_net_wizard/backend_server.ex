@@ -893,14 +893,6 @@ defmodule VintageNetWizard.BackendServer do
     GenServer.call(__MODULE__, {:set_init_cam, value})
   end
 
-  def get_lock do
-    GenServer.call(__MODULE__, :get_lock)
-  end
-
-  def get_lock_type do
-    GenServer.call(__MODULE__, :get_lock_type)
-  end
-
   def change_lock(should_lock) do
     GenServer.call(__MODULE__, {:change_lock, should_lock})
   end
@@ -949,10 +941,6 @@ defmodule VintageNetWizard.BackendServer do
 
   def handle_call(:get_lock, _from, state) do
     {:reply, state.lock, state}
-  end
-
-  def handle_call(:get_lock_type, _from, state) do
-    {:reply, state.lock_type, state}
   end
 
   def handle_call({:change_lock, should_lock}, _from, state) do
@@ -1020,18 +1008,6 @@ defmodule VintageNetWizard.BackendServer do
 
   defp validate_internet_type(type) when type in ["wifi", "ethernet"], do: {:ok, type}
   defp validate_internet_type(_), do: {:error, :invalid_internet_type}
-
-  @doc """
-  Gets the current lock status.
-
-  Returns a map containing:
-  - lock: boolean indicating if locked
-  - working: boolean indicating if lock is functioning
-  """
-  @spec get_lock() :: %{lock: boolean(), working: boolean(), timestamp: String.t()}
-  def get_lock() do
-    GenServer.call(__MODULE__, :get_lock)
-  end
 
   @doc """
   Get complete board configuration
