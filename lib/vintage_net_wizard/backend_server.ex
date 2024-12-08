@@ -893,10 +893,6 @@ defmodule VintageNetWizard.BackendServer do
     GenServer.call(__MODULE__, {:set_init_cam, value})
   end
 
-  def get_door do
-    GenServer.call(__MODULE__, :get_door)
-  end
-
   def get_lock do
     GenServer.call(__MODULE__, :get_lock)
   end
@@ -949,10 +945,6 @@ defmodule VintageNetWizard.BackendServer do
   def handle_call({:set_init_cam, value}, _from, state) do
     new_state = %{state | init_cam: value}
     {:reply, :ok, new_state}
-  end
-
-  def handle_call(:get_door, _from, state) do
-    {:reply, state.door, state}
   end
 
   def handle_call(:get_lock, _from, state) do

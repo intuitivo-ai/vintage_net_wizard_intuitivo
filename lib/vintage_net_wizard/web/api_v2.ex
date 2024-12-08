@@ -111,8 +111,8 @@ defmodule VintageNetWizard.Web.ApiV2 do
     door_status = BackendServer.get_door()
 
     response = %{
-      status: if(door_status.door, do: "open", else: "closed"),
-      lastChanged: door_status.timestamp || DateTime.utc_now() |> DateTime.to_iso8601()
+      status: door_status["door"],
+      lastChanged: door_status["timestamp"]
     }
 
     send_json(conn, 200, response)
