@@ -4,9 +4,28 @@ defmodule VintageNetWizard.Web.ApiV2 do
 
   This module provides enhanced API endpoints with richer metadata and consistent response formats.
   All responses include timestamps and detailed status information.
+
+  ## Endpoints
+
+  ### GET /health
+    Health check endpoint to verify API availability.
+
+  ### GET /networks/scan
+    Scan for available WiFi networks.
+
+  ### GET /configuration/status
+    Get detailed configuration status.
+
+  ### POST /lock
+    Control lock state.
+
+  ### PUT /lock-type
+    Update lock type configuration.
   """
 
   use Plug.Router
+
+  @valid_lock_types ["retrofit", "imbera", "southco"]
 
   alias Plug.Conn
   alias VintageNetWizard.BackendServer
@@ -16,18 +35,6 @@ defmodule VintageNetWizard.Web.ApiV2 do
   plug(:match)
   plug(:dispatch)
 
-  @doc """
-  Health check endpoint to verify API availability.
-
-  Returns:
-      {
-        "status": "ok",
-        "version": "2.0.0",
-        "mac_address": "00:11:22:33:44:55",  # MAC address of the WiFi interface
-        "firmware_version": "1.2.3",          # Current firmware version
-        "timestamp": "2024-03-20T15:30:00Z"
-      }
-  """
   get "/health" do
     device_info = BackendServer.device_info()
 
@@ -37,8 +44,8 @@ defmodule VintageNetWizard.Web.ApiV2 do
                  |> elem(1)
 
     firmware_version = device_info
-                      |> Enum.find(fn {label, _} -> label == "Firmware version" end)
-                      |> elem(1)
+                     |> Enum.find(fn {label, _} -> label == "Firmware version" end)
+                     |> elem(1)
 
     send_json(conn, 200, %{
       status: "ok",
@@ -49,23 +56,6 @@ defmodule VintageNetWizard.Web.ApiV2 do
     })
   end
 
-  @doc """
-  Scan for available WiFi networks.
-
-  Returns:
-      {
-        "networks": [
-          {
-            "ssid": "NetworkName",
-            "signal_percent": 75,
-            "frequency": 2437,
-            "band": "wifi_2_4_ghz",
-            "channel": 6,
-            "flags": ["wpa2", "psk", "ccmp", "ess"]
-          }
-        ]
-      }
-  """
   get "/networks/scan" do
     networks =
       BackendServer.access_points()
@@ -84,21 +74,6 @@ defmodule VintageNetWizard.Web.ApiV2 do
     send_json(conn, 200, %{networks: networks})
   end
 
-  @doc """
-  Get detailed configuration status.
-
-  Returns:
-      {
-        "status": "good",
-        "timestamp": "2024-03-20T15:30:00Z",
-        "details": "Network configured and connected"
-      }
-
-  Status can be:
-  - "good" - Network is configured and connected
-  - "bad" - Network is configured but not connected
-  - "not_configured" - No network configuration present
-  """
   get "/configuration/status" do
     status = BackendServer.configuration_status()
 
@@ -108,28 +83,9 @@ defmodule VintageNetWizard.Web.ApiV2 do
       details: configuration_status_details(status)
     }
 
-    send_json(conn, 200, Jason.encode!(response))
+    send_json(conn, 200, response)
   end
 
-  @doc """
-  Get status of all connected cameras.
-
-  Returns:
-      {
-        "cameras": [
-          {
-            "id": "cam1",
-            "name": "Front Camera",
-            "status": "online",
-            "streamUrl": "rtsp://device-ip:8554/cam1"
-          }
-        ]
-      }
-
-  Status values:
-  - "online" - Camera is connected and streaming
-  - "offline" - Camera is disconnected or not responding
-  """
   get "/cameras" do
     device_ip = VintageNet.get(["interface", "wlan0", "addresses"])
                 |> List.first()
@@ -139,16 +95,6 @@ defmodule VintageNetWizard.Web.ApiV2 do
     send_json(conn, 200, %{cameras: cameras})
   end
 
-  @doc """
-  Initialize cameras.
-
-  Response:
-      {
-        "status": "success",
-        "message": "Cameras initialized successfully",
-        "timestamp": "2024-03-20T15:30:00Z"
-      }
-  """
   post "/cameras/initialize" do
     BackendServer.init_cameras()  # Using existing function
 
@@ -161,19 +107,6 @@ defmodule VintageNetWizard.Web.ApiV2 do
     send_json(conn, 200, response)
   end
 
-  @doc """
-  Get door sensor status.
-
-  Returns:
-      {
-        "status": "open" | "closed",
-        "lastChanged": "2024-03-20T15:30:00Z"
-      }
-
-  Status values:
-  - "open" - Door is currently open
-  - "closed" - Door is currently closed
-  """
   get "/door" do
     door_status = BackendServer.get_door()
 
@@ -185,26 +118,6 @@ defmodule VintageNetWizard.Web.ApiV2 do
     send_json(conn, 200, response)
   end
 
-  @doc """
-  Get lock status and details.
-
-  Returns:
-      {
-        "status": "locked" | "unlocked",
-        "lastChanged": "2024-03-20T15:30:00Z",
-        "type": "retrofit" | "imbera" | "southco",
-        "isWorking": true
-      }
-
-  Status values:
-  - "locked" - Lock is engaged
-  - "unlocked" - Lock is disengaged
-
-  Type values:
-  - "retrofit" - Retrofit lock mechanism
-  - "imbera" - Imbera native lock
-  - "southco" - Southco electronic lock
-  """
   get "/lock" do
     lock_status = BackendServer.get_lock()
     lock_type = BackendServer.get_lock_type()
@@ -219,30 +132,6 @@ defmodule VintageNetWizard.Web.ApiV2 do
     send_json(conn, 200, response)
   end
 
-  @doc """
-  Control lock state.
-
-  Request body:
-      {
-        "desired_state": "locked" | "unlocked"
-      }
-
-  Success response:
-      {
-        "status": "success",
-        "message": "Lock state changed successfully",
-        "current_state": "locked" | "unlocked",
-        "timestamp": "2024-03-20T15:30:00Z"
-      }
-
-  Error response (400):
-      {
-        "error": "validation_error",
-        "code": "INVALID_STATE",
-        "message": "desired_state must be either 'locked' or 'unlocked'",
-        "timestamp": "2024-03-20T15:30:00Z"
-      }
-  """
   post "/lock" do
     case get_body(conn) do
       %{"desired_state" => desired_state} when desired_state in ["locked", "unlocked"] ->
@@ -264,32 +153,6 @@ defmodule VintageNetWizard.Web.ApiV2 do
         send_error_response(conn, {:error, :missing_state})
     end
   end
-
-  @doc """
-  Update lock type configuration.
-
-  Request body:
-      {
-        "lockType": "retrofit" | "imbera" | "southco"
-      }
-
-  Success response:
-      {
-        "status": "success",
-        "message": "Lock type updated successfully",
-        "current_type": "retrofit" | "imbera" | "southco",
-        "timestamp": "2024-03-20T15:30:00Z"
-      }
-
-  Error response (400):
-      {
-        "error": "validation_error",
-        "code": "INVALID_LOCK_TYPE",
-        "message": "lockType must be one of: retrofit, imbera, southco",
-        "timestamp": "2024-03-20T15:30:00Z"
-      }
-  """
-  @valid_lock_types ["retrofit", "imbera", "southco"]
 
   put "/lock-type" do
     case get_body(conn) do
@@ -327,93 +190,11 @@ defmodule VintageNetWizard.Web.ApiV2 do
     end
   end
 
-  @doc """
-  Get complete board configuration including lock, network, and system settings.
-
-  Returns:
-      {
-        "lockType": "retrofit" | "imbera" | "southco",
-        "wifi": {
-          "networks": [
-            {
-              "ssid": "string",
-              "password": "string"
-            }
-          ],
-          "primary_network": "string",
-          "method": "dhcp" | "static",
-          "static_config": {
-            "address": "string",
-            "netmask": "string",
-            "gateway": "string",
-            "name_servers": "string"
-          }
-        },
-        "mobileNetwork": {
-          "apn": "string"
-        },
-        "hotspotOutput": "wifi" | "ethernet",
-        "nama": {
-          "enabled": boolean,
-          "profile": "string"
-        },
-        "ntp": "string"
-      }
-  """
   get "/config" do
     config = BackendServer.get_board_config()  # Using existing function
     send_json(conn, 200, config)
   end
 
-  @doc """
-  Update board configuration.
-
-  Request body:
-      {
-        "lockType": "retrofit" | "imbera" | "southco",
-        "wifi": {
-          "networks": [
-            {
-              "ssid": "string",
-              "password": "string"
-            }
-          ],
-          "primary_network": "string",
-          "method": "dhcp" | "static",
-          "static_config": {
-            "address": "string",
-            "netmask": "string",
-            "gateway": "string",
-            "name_servers": "string"
-          }
-        },
-        "mobileNetwork": {
-          "apn": "string"
-        },
-        "hotspotOutput": "wifi" | "ethernet",
-        "nama": {
-          "enabled": boolean,
-          "profile": "string"
-        },
-        "ntp": "string"
-      }
-
-  Success response:
-      {
-        "status": "success",
-        "message": "Configuration updated successfully",
-        "timestamp": "2024-03-20T15:30:00Z"
-      }
-
-  Error response (400):
-      {
-        "error": "validation_error",
-        "code": "INVALID_CONFIG",
-        "message": "Invalid configuration provided",
-        "details": ["specific error details"],
-        "timestamp": "2024-03-20T15:30:00Z"
-      }
-  """
   put "/config" do
     case get_body(conn) do
       %{} = config ->
@@ -578,7 +359,7 @@ defmodule VintageNetWizard.Web.ApiV2 do
   # Helper functions
   defp send_json(conn, status_code, json) when is_binary(json) do
     conn
-    |> put_resp_header("content-type", "application/json")
+    |> put_resp_content_type("content-type", "application/json")
     |> send_resp(status_code, json)
   end
 
@@ -586,14 +367,6 @@ defmodule VintageNetWizard.Web.ApiV2 do
     send_json(conn, status_code, Jason.encode!(data))
   end
 
-  @doc """
-  Enhances access point information with additional metadata.
-
-  Adds:
-  - scan_time: ISO8601 timestamp of when the scan occurred
-  - security_details: Detailed security information
-  - signal_quality: Human-readable signal strength
-  """
   defp enhance_access_points(access_points) do
     access_points
     |> VintageNetWiFi.summarize_access_points()
@@ -606,14 +379,6 @@ defmodule VintageNetWizard.Web.ApiV2 do
     end)
   end
 
-  @doc """
-  Extracts detailed security information from access point flags.
-
-  Returns a map containing:
-  - is_secure: Boolean indicating encryption presence
-  - authentication_types: List of auth methods
-  - encryption_types: List of encryption protocols
-  """
   defp extract_security_details(flags) do
     %{
       is_secure: Enum.any?(flags, &(&1 in [:wpa2, :wpa])),
@@ -622,16 +387,6 @@ defmodule VintageNetWizard.Web.ApiV2 do
     }
   end
 
-  @doc """
-  Converts signal percentage to human-readable quality level.
-
-  Ranges:
-  - 80-100%: "excellent"
-  - 60-79%: "good"
-  - 40-59%: "fair"
-  - 20-39%: "poor"
-  - 0-19%: "very_poor"
-  """
   defp calculate_signal_quality(signal_percent) when is_integer(signal_percent) do
     cond do
       signal_percent >= 80 -> "excellent"
@@ -651,15 +406,6 @@ defmodule VintageNetWizard.Web.ApiV2 do
     send_json(conn, status, response)
   end
 
-  @doc """
-  Maps error types to appropriate HTTP responses.
-
-  Each error response includes:
-  - error: Error category
-  - code: Specific error code
-  - message: Human-readable error description
-  - timestamp: When the error occurred
-  """
   defp error_details({:error, :password_required}) do
     {400, %{
       error: "validation_error",
@@ -701,7 +447,5 @@ defmodule VintageNetWizard.Web.ApiV2 do
   defp get_body(%Conn{body_params: %{"_json" => body}}), do: body
   defp get_body(%Conn{body_params: body}), do: body
 
-  defp put_resp_header(conn, key, value) do
-    Plug.Conn.put_resp_header(conn, key, value)
-  end
+
 end
