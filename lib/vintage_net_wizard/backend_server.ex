@@ -657,7 +657,6 @@ defmodule VintageNetWizard.BackendServer do
 
   @impl GenServer
   def handle_cast({:set_door, door}, state) do
-    Logger.info("door_status: #{inspect(door)}")
     {:noreply, %{state | door: door}}
   end
 
