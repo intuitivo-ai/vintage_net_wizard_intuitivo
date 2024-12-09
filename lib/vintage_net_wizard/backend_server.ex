@@ -479,6 +479,9 @@ defmodule VintageNetWizard.BackendServer do
   end
 
   def handle_call(:get_board_config, _from, state) do
+
+    status = configuration_status()
+
     config = %{
       lockType: state.lock_type["lock_type"],
       wifi: %{
@@ -496,7 +499,8 @@ defmodule VintageNetWizard.BackendServer do
         temperature: state.state_temperature.temperature || "",
         version: state.state_version.version || ""
       },
-      ntp: state.ntp
+      ntp: state.ntp,
+      status_wifi: %{status: status, timestamp: DateTime.utc_now() |> DateTime.to_iso8601(), details: configuration_status_details(status)}
     }
     {:reply, config, state}
   end
@@ -920,5 +924,9 @@ defmodule VintageNetWizard.BackendServer do
       }
     ]
   end
+
+  def configuration_status_details(:not_configured), do: "No network configuration present"
+  def configuration_status_details(:good), do: "Network configured and connected"
+  def configuration_status_details(:bad), do: "Network configuration present but not connected"
 
 end

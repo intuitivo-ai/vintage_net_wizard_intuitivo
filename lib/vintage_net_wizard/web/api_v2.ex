@@ -87,7 +87,7 @@ defmodule VintageNetWizard.Web.ApiV2 do
     response = %{
       status: status,
       timestamp: DateTime.utc_now() |> DateTime.to_iso8601(),
-      details: configuration_status_details(status)
+      details: BackendServer.configuration_status_details(status)
     }
 
     send_json(conn, 200, response)
@@ -433,10 +433,6 @@ defmodule VintageNetWizard.Web.ApiV2 do
       true -> "very_poor"
     end
   end
-
-  defp configuration_status_details(:not_configured), do: "No network configuration present"
-  defp configuration_status_details(:good), do: "Network configured and connected"
-  defp configuration_status_details(:bad), do: "Network configuration present but not connected"
 
   defp send_error_response(conn, error) do
     {status, response} = error_details(error)
