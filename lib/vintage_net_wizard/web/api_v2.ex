@@ -255,10 +255,12 @@ defmodule VintageNetWizard.Web.ApiV2 do
   end
 
   defp validate_mobile_network(%{mobileNetwork: %{apn: apn}}) when is_binary(apn), do: {:ok, apn}
+  defp validate_mobile_network(%{mobileNetwork: %{apn: ""}}), do: {:ok, nil}
   defp validate_mobile_network(%{mobileNetwork: _}), do: {:error, "Invalid mobile network configuration"}
   defp validate_mobile_network(_), do: {:ok, nil}  # Optional field
 
   defp validate_hotspot_output(%{hotspotOutput: output}) when output in ["wlan0", "wwan0"], do: {:ok, output}
+  defp validate_hotspot_output(%{hotspotOutput: ""}), do: {:ok, nil}
   defp validate_hotspot_output(%{hotspotOutput: _}), do: {:error, "Invalid hotspot output"}
   defp validate_hotspot_output(_), do: {:ok, nil}  # Optional field
 
@@ -267,10 +269,14 @@ defmodule VintageNetWizard.Web.ApiV2 do
   defp validate_nama_config(_), do: {:ok, nil}  # Optional field
 
   defp validate_ntp_config(%{ntp: ntp}) when is_binary(ntp) do
-    if String.match?(ntp, ~r/^((\d{1,3}\.){3}\d{1,3}),((\d{1,3}\.){3}\d{1,3})(,((\d{1,3}\.){3}\d{1,3}))*$/) do
-      {:ok, ntp}
+    if ntp == "" do
+      {:ok, nil}
     else
-      {:error, "Invalid NTP format - must be at least two comma-separated IP addresses"}
+      if String.match?(ntp, ~r/^((\d{1,3}\.){3}\d{1,3}),((\d{1,3}\.){3}\d{1,3})(,((\d{1,3}\.){3}\d{1,3}))*$/) do
+        {:ok, ntp}
+      else
+        {:error, "Invalid NTP format - must be at least two comma-separated IP addresses"}
+      end
     end
   end
   defp validate_ntp_config(%{ntp: _}), do: {:error, "Invalid NTP configuration"}
