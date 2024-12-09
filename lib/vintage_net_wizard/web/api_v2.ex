@@ -27,7 +27,7 @@ defmodule VintageNetWizard.Web.ApiV2 do
 
   require Logger
 
-  @valid_lock_types ["retrofit", "imbera", "southco"]
+  @valid_lock_types ["retrofit", "imbera", "southco", "duenorth"]
 
   alias Plug.Conn
   alias VintageNetWizard.BackendServer
@@ -125,8 +125,8 @@ defmodule VintageNetWizard.Web.ApiV2 do
     lock_type = BackendServer.get_lock_type()
 
     response = %{
-      status: lock_status["lock"],
-      lastChanged: lock_status["timestamp"],
+      status: lock_status["lock"] || "locked",
+      lastChanged: lock_status["timestamp"] || DateTime.utc_now() |> DateTime.to_iso8601(),
       type: lock_type["lock_type"],
       isWorking: true
     }

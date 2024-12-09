@@ -720,7 +720,9 @@ defmodule VintageNetWizard.BackendServer do
 
     Logger.info("New lock TYPE: #{inspect(value)}")
 
-    {:noreply, %{state | lock_type_select: value, change_lock: true}}
+    In2Firmware.Services.Operations.Utils.set_lock_type(value)
+
+    {:noreply, state}
   end
 
   @impl GenServer
@@ -896,10 +898,6 @@ defmodule VintageNetWizard.BackendServer do
     GenServer.call(__MODULE__, {:set_init_cam, value})
   end
 
-  def save_lock(lock_type) do
-    GenServer.call(__MODULE__, {:save_lock, lock_type})
-  end
-
   def get_apn do
     GenServer.call(__MODULE__, :get_apn)
   end
@@ -940,16 +938,6 @@ defmodule VintageNetWizard.BackendServer do
 
   def handle_call(:get_lock, _from, state) do
     {:reply, state.lock, state}
-  end
-
-  def handle_call({:save_lock, lock_type}, _from, state) do
-    case validate_lock_type(lock_type) do
-      {:ok, validated_type} ->
-        new_state = %{state | lock_type: %{state.lock_type | lock_type_select: validated_type}}
-        {:reply, :ok, new_state}
-      {:error, _} = error ->
-        {:reply, error, state}
-    end
   end
 
   def handle_call({:save_internet, internet_type}, _from, state) do
