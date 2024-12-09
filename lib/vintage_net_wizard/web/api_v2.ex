@@ -217,7 +217,7 @@ defmodule VintageNetWizard.Web.ApiV2 do
   end
 
   # Configuration validation and application helpers
-  defp validate_config(config) do
+  def validate_config(config) do
     with {:ok, _} <- validate_lock_type(config),
          {:ok, _} <- validate_wifi_config(config),
          {:ok, _} <- validate_mobile_network(config),
@@ -282,7 +282,7 @@ defmodule VintageNetWizard.Web.ApiV2 do
   defp validate_ntp_config(%{ntp: _}), do: {:error, "Invalid NTP configuration"}
   defp validate_ntp_config(_), do: {:ok, nil}  # Optional field
 
-  defp apply_config(config) do
+  def apply_config(config) do
     # Apply each configuration section if present
     with :ok <- maybe_apply_lock_type(config),
          :ok <- maybe_apply_wifi_config(config),
