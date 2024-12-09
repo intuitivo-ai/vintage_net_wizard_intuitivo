@@ -117,8 +117,7 @@ defmodule VintageNetWizard do
 
   defp start_services(opts) do
     with :ok <- Endpoint.start_server(opts),
-         :ok <- BackendServer.start_scan(),
-         :ok <- BackendServer.start_cams() do
+         :ok <- BackendServer.start_scan() do
       :ok
     else
       {:error, :already_started} -> :ok
