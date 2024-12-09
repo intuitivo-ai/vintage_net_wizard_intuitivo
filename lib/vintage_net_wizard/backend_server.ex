@@ -22,6 +22,8 @@ defmodule VintageNetWizard.BackendServer do
       internet_select: String.t() | nil,
       state_nama: %{enabled: boolean()},
       state_profile: %{profile: String.t()},
+      state_temperature: %{temperature: String.t()},
+      state_version: %{version: String.t()},
       init_cam: boolean(),
       door: %{door: boolean(), timestamp: String.t()},
       lock: %{lock: boolean(), working: boolean(), timestamp: String.t()},
@@ -40,6 +42,8 @@ defmodule VintageNetWizard.BackendServer do
               internet_select: "wifi",
               state_nama: %{enabled: false},
               state_profile: %{profile: ""},
+              state_temperature: %{temperature: ""},
+              state_version: %{version: ""},
               init_cam: false,
               door: %{door: false, timestamp: nil},
               lock: %{lock: false, working: true, timestamp: nil},
@@ -258,14 +262,6 @@ defmodule VintageNetWizard.BackendServer do
     GenServer.call(__MODULE__, :get_state_imbera)
   end
 
-  def get_state_nama() do
-    GenServer.call(__MODULE__, :get_state_nama)
-  end
-
-  def get_state_profile() do
-    GenServer.call(__MODULE__, :get_state_profile)
-  end
-
   def get_temp() do
     GenServer.call(__MODULE__, :get_temp)
   end
@@ -284,10 +280,6 @@ defmodule VintageNetWizard.BackendServer do
 
   def get_change_lock() do
     GenServer.call(__MODULE__, :get_change_lock)
-  end
-
-  def get_change_lock_type() do
-    GenServer.call(__MODULE__, :get_change_lock_type)
   end
 
   def init_cam() do
@@ -376,92 +368,12 @@ defmodule VintageNetWizard.BackendServer do
 
   @impl GenServer
   def handle_call(
-        :get_change_lock_type,
-        _from,
-          state
-      ) do
-
-    {:reply, %{"lock_type_select" => state.lock_type_select, "change_lock" => state.change_lock}, state}
-  end
-
-  @impl GenServer
-  def handle_call(
         :get_door,
         _from,
           state
       ) do
 
     {:reply, state.door, state}
-  end
-
-  @impl GenServer
-  def handle_call(
-        :get_state_imbera,
-        _from,
-          state
-      ) do
-
-    {:reply, state.state_imbera, state}
-  end
-
-  @impl GenServer
-  def handle_call(
-        :get_state_nama,
-        _from,
-          state
-      ) do
-
-    {:reply, state.state_nama, state}
-  end
-
-  @impl GenServer
-  def handle_call(
-        :get_state_profile,
-        _from,
-          state
-      ) do
-
-    {:reply, state.state_profile, state}
-  end
-
-  @impl GenServer
-  def handle_call(
-        :get_temp,
-        _from,
-          state
-      ) do
-
-    {:reply, state.temp, state}
-  end
-
-  @impl GenServer
-  def handle_call(
-        :get_version,
-        _from,
-          state
-      ) do
-
-    {:reply, state.version, state}
-  end
-
-  @impl GenServer
-  def handle_call(
-        :get_open_lock,
-        _from,
-          state
-      ) do
-
-    {:reply, state.open_lock, state}
-  end
-
-  @impl GenServer
-  def handle_call(
-        :get_close_lock,
-        _from,
-          state
-      ) do
-
-    {:reply, state.close_lock, state}
   end
 
   @impl GenServer
@@ -600,7 +512,9 @@ defmodule VintageNetWizard.BackendServer do
       hotspotOutput: state.internet_select || "disabled",
       nama: %{
         enabled: state.state_nama.enabled || false,
-        profile: state.state_profile.profile || ""
+        profile: state.state_profile.profile || "",
+        temperature: state.state_temperature.temperature || "",
+        version: state.state_version.version || ""
       },
       ntp: state.ntp
     }
@@ -677,7 +591,7 @@ defmodule VintageNetWizard.BackendServer do
 
   @impl GenServer
   def handle_cast({:set_temp, temp}, state) do
-    {:noreply, %{state | temp: temp}}
+    {:noreply, %{state | state_temperature: temp}}
   end
 
   @impl GenServer
@@ -818,7 +732,7 @@ defmodule VintageNetWizard.BackendServer do
   @impl GenServer
   def handle_info(:get_apn, state) do
 
-    result = read_file("/root/apn.txt")
+    result = File.read("/root/apn.txt")
 
     apn = case result do
       {:ok, binary} -> binary
@@ -831,7 +745,7 @@ defmodule VintageNetWizard.BackendServer do
   @impl GenServer
   def handle_info(:get_internet_select, state) do
 
-    result = read_file("/root/internet.txt")
+    result = File.read("/root/internet.txt")
 
     internet_select = case result do
       {:ok, binary} -> binary
@@ -907,28 +821,12 @@ defmodule VintageNetWizard.BackendServer do
     end
   end
 
-  def get_state_nama do
-    GenServer.call(__MODULE__, :get_state_nama)
-  end
-
-  def get_state_profile do
-    GenServer.call(__MODULE__, :get_state_profile)
-  end
-
   def set_init_cam(value) do
     GenServer.call(__MODULE__, {:set_init_cam, value})
   end
 
   def save_apn(apn) do
     GenServer.call(__MODULE__, {:save_apn, apn})
-  end
-
-  def handle_call(:get_state_nama, _from, state) do
-    {:reply, state.state_nama, state}
-  end
-
-  def handle_call(:get_state_profile, _from, state) do
-    {:reply, state.state_profile, state}
   end
 
   def handle_call({:set_init_cam, value}, _from, state) do
@@ -981,24 +879,41 @@ defmodule VintageNetWizard.BackendServer do
   end
 
   defp get_network_method() do
-    case read_file("/root/method.txt") do
-      "static" -> "static"
-      _ -> "dhcp"
+    result = File.read("/root/config_wifi.txt")
+
+    case result do
+      {:ok, binary} -> if binary != "" do
+        {:ok, decoded_map} = Jason.decode(binary)
+        case decoded_map["method"] do
+          "dhcp" -> "dhcp"
+          "static" -> "static"
+        end
+      else
+        "static"
+      end
+        "static"
     end
   end
 
   defp get_static_config() do
-    case get_network_method() do
-      "static" ->
-        addresses = VintageNet.get(["interface", "wlan0", "addresses"])
-        first_addr = List.first(addresses) || %{}
-        %{
-          address: Map.get(first_addr, :address, ""),
-          netmask: Map.get(first_addr, :netmask, ""),
-          gateway: VintageNet.get(["interface", "wlan0", "gateway"]) || "",
-          name_servers: read_file("/root/ntps.txt", "")
+    result = File.read("/root/config_wifi.txt")
+
+    case result do
+      {:ok, binary} -> if binary != "" do
+        {:ok, decoded_map} = Jason.decode(binary)
+        case decoded_map["method"] do
+          "dhcp" -> %{}
+          "static" -> %{
+            address: decoded_map["address"],
+            netmask: decoded_map["netmask"],
+            gateway: decoded_map["gateway"],
+            name_servers: decoded_map["name_servers"]
         }
-      _ -> nil
+        end
+      else
+        %{}
+      end
+      %{}
     end
   end
 
