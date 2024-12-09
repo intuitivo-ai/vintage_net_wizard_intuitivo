@@ -196,7 +196,8 @@ defmodule VintageNetWizard.Web.ApiV2 do
 
   put "/config" do
     case get_body(conn) do
-      %{} = config ->
+      config when is_map(config) and map_size(config) > 0 ->
+        Logger.info("Config put: #{inspect(config)}")
         with :ok <- validate_config(config),
              :ok <- apply_config(config) do
           response = %{
@@ -307,6 +308,8 @@ defmodule VintageNetWizard.Web.ApiV2 do
       "dhcp" ->
         BackendServer.save_method(%{method: :dhcp})
     end
+
+    Logger.info("Saving WiFi networks #{inspect(wifi.networks)}")
 
     # Apply WiFi networks if provided
     if wifi.networks do
