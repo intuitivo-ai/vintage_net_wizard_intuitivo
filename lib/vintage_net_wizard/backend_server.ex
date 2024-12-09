@@ -21,7 +21,7 @@ defmodule VintageNetWizard.BackendServer do
       ifname: String.t() | nil,
       internet_select: String.t() | nil,
       state_nama: %{enabled: boolean()},
-      state_profile: %{profile: String.t()},
+      state_profile: %{profile: integer()},
       state_temperature: %{temperature: String.t()},
       state_version: %{version: String.t()},
       init_cam: boolean(),
@@ -41,7 +41,7 @@ defmodule VintageNetWizard.BackendServer do
               ifname: nil,
               internet_select: "disabled",
               state_nama: %{enabled: false},
-              state_profile: %{profile: ""},
+              state_profile: %{profile: 1},
               state_temperature: %{temperature: ""},
               state_version: %{version: ""},
               init_cam: false,
@@ -492,7 +492,7 @@ defmodule VintageNetWizard.BackendServer do
       hotspotOutput: state.internet_select || "disabled",
       nama: %{
         enabled: state.state_nama.enabled || false,
-        profile: state.state_profile.profile || "",
+        profile: state.state_profile.profile || 1,
         temperature: state.state_temperature.temperature || "",
         version: state.state_version.version || ""
       },
@@ -896,19 +896,19 @@ defmodule VintageNetWizard.BackendServer do
     [
       %{
         id: "cam0",
-        name: "Front Camera",
+        name: "Upper Central Camera",
         status: if(StreamServerIntuitivo.ServerManager.get_server("camera0"), do: "online", else: "offline"),
         streamUrl: "http://#{device_ip}:11000"
       },
       %{
         id: "cam1",
-        name: "Back Camera",
+        name: "Upper Lateral Camera",
         status: if(StreamServerIntuitivo.ServerManager.get_server("camera1"), do: "online", else: "offline"),
         streamUrl: "http://#{device_ip}:11001"
       },
       %{
         id: "cam2",
-        name: "Back Camera",
+        name: "Lateral Retractable Camera",
         status: if(StreamServerIntuitivo.ServerManager.get_server("camera2"), do: "online", else: "offline"),
         streamUrl: "http://#{device_ip}:11002"
       }

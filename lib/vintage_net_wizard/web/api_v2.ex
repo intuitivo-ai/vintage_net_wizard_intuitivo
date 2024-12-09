@@ -31,6 +31,7 @@ defmodule VintageNetWizard.Web.ApiV2 do
 
   alias Plug.Conn
   alias VintageNetWizard.BackendServer
+  alias VintageNetWizard.Web.Endpoint
   alias VintageNetWizard.WiFiConfiguration
 
   plug(Plug.Parsers, parsers: [:json], json_decoder: Jason)
@@ -256,7 +257,7 @@ defmodule VintageNetWizard.Web.ApiV2 do
   defp validate_mobile_network(%{mobileNetwork: _}), do: {:error, "Invalid mobile network configuration"}
   defp validate_mobile_network(_), do: {:ok, nil}  # Optional field
 
-  defp validate_hotspot_output(%{hotspotOutput: output}) when output in ["wifi", "ethernet"], do: {:ok, output}
+  defp validate_hotspot_output(%{hotspotOutput: output}) when output in ["wlan0", "wwan0"], do: {:ok, output}
   defp validate_hotspot_output(%{hotspotOutput: _}), do: {:error, "Invalid hotspot output"}
   defp validate_hotspot_output(_), do: {:ok, nil}  # Optional field
 
@@ -265,7 +266,13 @@ defmodule VintageNetWizard.Web.ApiV2 do
   defp validate_nama_config(%{nama: _}), do: {:error, "Invalid NAMA configuration"}
   defp validate_nama_config(_), do: {:ok, nil}  # Optional field
 
-  defp validate_ntp_config(%{ntp: ntp}) when is_binary(ntp), do: {:ok, ntp}
+  defp validate_ntp_config(%{ntp: ntp}) when is_binary(ntp) do
+    if String.match?(ntp, ~r/^((\d{1,3}\.){3}\d{1,3}),((\d{1,3}\.){3}\d{1,3})(,((\d{1,3}\.){3}\d{1,3}))*$/) do
+      {:ok, ntp}
+    else
+      {:error, "Invalid NTP format - must be at least two comma-separated IP addresses"}
+    end
+  end
   defp validate_ntp_config(%{ntp: _}), do: {:error, "Invalid NTP configuration"}
   defp validate_ntp_config(_), do: {:ok, nil}  # Optional field
 
@@ -305,12 +312,28 @@ defmodule VintageNetWizard.Web.ApiV2 do
     # Apply WiFi networks if provided
     if wifi.networks do
       Enum.each(wifi.networks, fn network ->
-        BackendServer.save(%{
-          ssid: network.ssid,
-          psk: network.password,
-          key_mgmt: if(network.password == "", do: :none, else: :wpa_psk)
-        })
+
+        {:ok, cfg} = WiFiConfiguration.json_to_network_config(network)
+
+        BackendServer.save(cfg)
+
       end)
+    end
+
+    if wifi.networks do
+
+      :ok = BackendServer.complete()
+      BackendServer.stop_cameras()
+
+    _ =
+      Task.Supervisor.start_child(VintageNetWizard.TaskSupervisor, fn ->
+        # We don't want to stop the server before we
+        # send the response back.
+        :timer.sleep(3000)
+
+        Endpoint.stop_server(:shutdown)
+      end)
+
     end
 
     :ok
@@ -329,9 +352,9 @@ defmodule VintageNetWizard.Web.ApiV2 do
   end
   defp maybe_apply_hotspot_output(_), do: :ok
 
-  defp maybe_apply_nama_config(%{nama: %{enabled: enabled}}) when not is_nil(enabled) do
+  defp maybe_apply_nama_config(%{nama: %{profile: profile}}) when not is_nil(profile) do
     # Assuming there's a function to enable/disable NAMA
-    # BackendServer.set_nama_enabled(enabled)
+    In2Firmware.Services.Operations.ReviewHW.state_profile(profile)
     :ok
   end
   defp maybe_apply_nama_config(_), do: :ok
@@ -454,6 +477,25 @@ defmodule VintageNetWizard.Web.ApiV2 do
       error: "validation_error",
       code: "INVALID_STATE",
       message: "desired_state must be either 'locked' or 'unlocked'",
+      timestamp: DateTime.utc_now() |> DateTime.to_iso8601()
+    }}
+  end
+
+  defp error_details({:error, :invalid_config, errors}) do
+    {400, %{
+      error: "validation_error",
+      code: "INVALID_CONFIG",
+      message: "Configuration validation failed",
+      errors: errors,
+      timestamp: DateTime.utc_now() |> DateTime.to_iso8601()
+    }}
+  end
+
+  defp error_details({:error, :missing_config}) do
+    {400, %{
+      error: "validation_error",
+      code: "MISSING_CONFIG",
+      message: "Configuration is required",
       timestamp: DateTime.utc_now() |> DateTime.to_iso8601()
     }}
   end

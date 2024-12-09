@@ -86,6 +86,8 @@ defmodule VintageNetWizard do
 
     BackendServer.stop_cameras()
 
+    :ok = BackendServer.complete()
+
     with :ok <- Endpoint.stop_server(stop_reason) do
       :ok
     else
