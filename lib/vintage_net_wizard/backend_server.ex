@@ -834,16 +834,6 @@ defmodule VintageNetWizard.BackendServer do
     {:reply, :ok, new_state}
   end
 
-  def handle_call({:save_apn, apn}, _from, state) do
-    case write_file("/root/apn.txt", apn) do
-      :ok ->
-        In2Firmware.check_cellular_connection(In2Firmware.target())
-        {:reply, :ok, %{state | apn: apn}}
-      error ->
-        {:reply, error, state}
-    end
-  end
-
   defp read_file(path, default \\ "") do
     case File.read(path) do
       {:ok, content} -> String.trim(content)
