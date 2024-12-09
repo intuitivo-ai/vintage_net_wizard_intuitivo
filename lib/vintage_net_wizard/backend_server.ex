@@ -697,7 +697,10 @@ defmodule VintageNetWizard.BackendServer do
 
   @impl GenServer
   def handle_cast({:change_lock, value}, state) do
-    {:noreply, %{state | lock: value}}
+
+    In2Firmware.Services.Operations.ReviewHW.change_lock(value)
+
+    {:noreply, state}
   end
 
   @impl GenServer
@@ -893,10 +896,6 @@ defmodule VintageNetWizard.BackendServer do
     GenServer.call(__MODULE__, {:set_init_cam, value})
   end
 
-  def change_lock(should_lock) do
-    GenServer.call(__MODULE__, {:change_lock, should_lock})
-  end
-
   def save_lock(lock_type) do
     GenServer.call(__MODULE__, {:save_lock, lock_type})
   end
@@ -941,15 +940,6 @@ defmodule VintageNetWizard.BackendServer do
 
   def handle_call(:get_lock, _from, state) do
     {:reply, state.lock, state}
-  end
-
-  def handle_call({:change_lock, should_lock}, _from, state) do
-    new_state = %{state | lock: %{
-      state.lock |
-      lock: should_lock,
-      timestamp: DateTime.utc_now() |> DateTime.to_iso8601()
-    }}
-    {:reply, :ok, new_state}
   end
 
   def handle_call({:save_lock, lock_type}, _from, state) do
