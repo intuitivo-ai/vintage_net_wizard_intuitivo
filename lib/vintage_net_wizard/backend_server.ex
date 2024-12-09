@@ -39,7 +39,7 @@ defmodule VintageNetWizard.BackendServer do
               device_info: [],
               ap_ifname: nil,
               ifname: nil,
-              internet_select: "wifi",
+              internet_select: "disabled",
               state_nama: %{enabled: false},
               state_profile: %{profile: ""},
               state_temperature: %{temperature: ""},
@@ -170,6 +170,8 @@ defmodule VintageNetWizard.BackendServer do
     GenServer.cast(__MODULE__, {:save_apn, apn})
   end
 
+
+
   @doc """
   Get a list of the current configurations
   """
@@ -286,8 +288,16 @@ defmodule VintageNetWizard.BackendServer do
     GenServer.call(__MODULE__, :init_cam)
   end
 
-  def stop_cam() do
-    GenServer.call(__MODULE__, :stop_cam)
+  def stop_cameras() do
+    GenServer.cast(__MODULE__, :stop_cameras)
+  end
+
+   @doc """
+  Initialize cameras
+  """
+  @spec init_cameras() :: :ok
+  def init_cameras() do
+    GenServer.cast(__MODULE__, :init_cameras)
   end
 
   @impl GenServer
@@ -314,26 +324,6 @@ defmodule VintageNetWizard.BackendServer do
        ifname: ifname,
        ap_ifname: ap_ifname
      }}
-  end
-
-  @impl GenServer
-  def handle_call(
-        :init_cam,
-        _from,
-          state
-      ) do
-
-        {:reply, state.init_cam, state}
-  end
-
-  @impl GenServer
-  def handle_call(
-        :stop_cam,
-        _from,
-          state
-      ) do
-
-        {:reply, state.stop_cam, state}
   end
 
   @impl GenServer
@@ -500,7 +490,7 @@ defmodule VintageNetWizard.BackendServer do
 
   def handle_call(:get_board_config, _from, state) do
     config = %{
-      lockType: state.lock_type,
+      lockType: state.lock_type["lock_type"],
       wifi: %{
         networks: get_wifi_networks(state),
         method: get_network_method(),
@@ -557,6 +547,24 @@ defmodule VintageNetWizard.BackendServer do
 
     :ok = deconfigure_ap_ifname(state)
     {:reply, :ok, %{state | backend_state: new_backend_state}}
+  end
+
+  @impl GenServer
+  def handle_cast(:init_cameras, state) do
+
+    In2Firmware.Services.Operations.ReviewHW.init_cameras()
+
+    Process.send_after(self(), :init_stream, 2000)
+
+    {:noreply,  state}
+  end
+
+  @impl GenServer
+  def handle_cast(:stop_cameras, state) do
+
+    In2Firmware.Services.Operations.ReviewHW.stop_cameras()
+
+    {:noreply,  state}
   end
 
   @impl GenServer
@@ -717,6 +725,33 @@ defmodule VintageNetWizard.BackendServer do
   end
 
   @impl GenServer
+  def handle_info(:init_stream, state) do
+
+    StreamServerIntuitivo.ServerManager.start_server(
+      "camera0",           # Unique name for this stream
+      "127.0.0.1",    # TCP host (camera IP)
+      6000,               # TCP port
+      11000                # HTTP port where the stream will be available
+    )
+
+    StreamServerIntuitivo.ServerManager.start_server(
+      "camera1",           # Unique name for this stream
+      "127.0.0.1",    # TCP host (camera IP)
+      6001,               # TCP port
+      11001                # HTTP port where the stream will be available
+    )
+
+    StreamServerIntuitivo.ServerManager.start_server(
+      "camera2",           # Unique name for this stream
+      "127.0.0.1",    # TCP host (camera IP)
+      6002,               # TCP port
+      11002                # HTTP port where the stream will be available
+    )
+
+    {:noreply, state}
+  end
+
+  @impl GenServer
   def handle_info(:get_ntp, state) do
 
     result = File.read("/root/ntps.txt")
@@ -821,41 +856,6 @@ defmodule VintageNetWizard.BackendServer do
     end
   end
 
-  def set_init_cam(value) do
-    GenServer.call(__MODULE__, {:set_init_cam, value})
-  end
-
-  def save_apn(apn) do
-    GenServer.call(__MODULE__, {:save_apn, apn})
-  end
-
-  def handle_call({:set_init_cam, value}, _from, state) do
-    new_state = %{state | init_cam: value}
-    {:reply, :ok, new_state}
-  end
-
-  defp read_file(path, default \\ "") do
-    case File.read(path) do
-      {:ok, content} -> String.trim(content)
-      {:error, _} -> default
-    end
-  end
-
-  defp write_file(path, content) do
-    case File.write(path, content, [:write]) do
-      :ok -> :ok
-      {:error, reason} ->
-        Logger.error("Failed to write to #{path}: #{inspect(reason)}")
-        {:error, reason}
-    end
-  end
-
-  defp validate_lock_type(type) when type in ["retrofit", "imbera", "southco"], do: {:ok, type}
-  defp validate_lock_type(_), do: {:error, :invalid_lock_type}
-
-  defp validate_internet_type(type) when type in ["wifi", "ethernet"], do: {:ok, type}
-  defp validate_internet_type(_), do: {:error, :invalid_internet_type}
-
   # Helper functions for board config
   defp get_wifi_networks(state) do
     state.configurations
@@ -914,30 +914,24 @@ defmodule VintageNetWizard.BackendServer do
   def get_cameras(device_ip) do
     [
       %{
-        id: "cam1",
+        id: "cam0",
         name: "Front Camera",
-        status: if(File.exists?("/root/cam1/frame1.jpg"), do: "online", else: "offline"),
-        streamUrl: "rtsp://#{device_ip}:8554/cam1"
+        status: if(StreamServerIntuitivo.ServerManager.get_server("camera0"), do: "online", else: "offline"),
+        streamUrl: "http://#{device_ip}:11000"
+      },
+      %{
+        id: "cam1",
+        name: "Back Camera",
+        status: if(StreamServerIntuitivo.ServerManager.get_server("camera1"), do: "online", else: "offline"),
+        streamUrl: "http://#{device_ip}:11001"
       },
       %{
         id: "cam2",
         name: "Back Camera",
-        status: if(File.exists?("/root/cam2/frame1.jpg"), do: "online", else: "offline"),
-        streamUrl: "rtsp://#{device_ip}:8554/cam2"
+        status: if(StreamServerIntuitivo.ServerManager.get_server("camera2"), do: "online", else: "offline"),
+        streamUrl: "http://#{device_ip}:11002"
       }
     ]
   end
 
-  @doc """
-  Initialize cameras
-  """
-  @spec init_cameras() :: :ok
-  def init_cameras() do
-    GenServer.call(__MODULE__, :init_cameras)
-  end
-
-  def handle_call(:init_cameras, _from, state) do
-    new_state = %{state | init_cam: true}
-    {:reply, :ok, new_state}
-  end
 end

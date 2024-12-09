@@ -90,8 +90,10 @@ defmodule VintageNetWizard.Web.ApiV2 do
 
   get "/cameras" do
     device_ip = VintageNet.get(["interface", "wlan0", "addresses"])
-                |> List.first()
-                |> Map.get(:address, "localhost")
+                |> Enum.find(fn addr -> addr.family == :inet end)
+                |> Map.get(:address)
+                |> Tuple.to_list()
+                |> Enum.join(".")
 
     cameras = BackendServer.get_cameras(device_ip)  # Using existing function
     send_json(conn, 200, %{cameras: cameras})
