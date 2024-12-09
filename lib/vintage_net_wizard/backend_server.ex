@@ -124,13 +124,6 @@ defmodule VintageNetWizard.BackendServer do
     GenServer.call(__MODULE__, :start_scan)
   end
 
-  @doc """
-  Start scanning for WiFi access points
-  """
-  @spec init_gst() :: :ok
-  def init_gst() do
-    GenServer.cast(__MODULE__, :init_gst)
-  end
 
   @doc """
   Stop scanning for WiFi access points
@@ -177,8 +170,6 @@ defmodule VintageNetWizard.BackendServer do
   def save_apn(apn) do
     GenServer.cast(__MODULE__, {:save_apn, apn})
   end
-
-
 
   @doc """
   Get a list of the current configurations
@@ -380,6 +371,8 @@ defmodule VintageNetWizard.BackendServer do
 
     Logger.info("start_scan from backend_server")
 
+    Process.send_after(self(), :init_stream_gst, 6_000)
+
     new_backend_state = backend.start_scan(backend_state)
 
     {:reply, :ok, %{state | backend_state: new_backend_state}}
@@ -555,15 +548,6 @@ defmodule VintageNetWizard.BackendServer do
 
     {:noreply,  state}
   end
-
-  @impl GenServer
-  def handle_cast(:init_gst, state) do
-
-    Process.send_after(self(), :init_stream_gst, 6_000)
-
-    {:noreply,  state}
-  end
-
 
   @impl GenServer
   def handle_cast(:stop_cameras, state) do
