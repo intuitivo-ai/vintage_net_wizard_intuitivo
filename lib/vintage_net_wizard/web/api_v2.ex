@@ -294,11 +294,12 @@ defmodule VintageNetWizard.Web.ApiV2 do
     end
   end
 
-  defp maybe_apply_lock_type(%{lockType: type}) when not is_nil(type) do
+  def maybe_apply_lock_type(%{lockType: type}) when not is_nil(type) do
+    Logger.info("Saving lock type #{inspect(type)}")
     BackendServer.save_lock(type)
     :ok
   end
-  defp maybe_apply_lock_type(_), do: :ok
+  def maybe_apply_lock_type(_), do: :ok
 
   defp maybe_apply_wifi_config(%{wifi: wifi}) when not is_nil(wifi) do
     Logger.info("Saving WiFi method #{inspect(wifi.method)}")
