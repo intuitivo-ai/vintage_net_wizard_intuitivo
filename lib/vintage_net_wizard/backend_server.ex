@@ -655,9 +655,11 @@ defmodule VintageNetWizard.BackendServer do
 
     Logger.info("apn: #{inspect(apn)}")
 
-    File.write("/root/apn.txt", apn, [:write])
+    if apn != "" do
+      File.write("/root/apn.txt", apn, [:write])
 
-    In2Firmware.check_cellular_connection(In2Firmware.target())
+      In2Firmware.check_cellular_connection(In2Firmware.target())
+    end
 
     {:noreply, state}
   end
@@ -667,9 +669,11 @@ defmodule VintageNetWizard.BackendServer do
 
     Logger.info("internet: #{inspect(internet)}")
 
-    File.write("/root/internet.txt", internet, [:write])
+    if internet != "" do
+      File.write("/root/internet.txt", internet, [:write])
 
-    In2Firmware.check_sharing_connection()
+      In2Firmware.check_sharing_connection()
+    end
 
     {:noreply, state}
   end
@@ -679,7 +683,8 @@ defmodule VintageNetWizard.BackendServer do
 
     Logger.info("NTPS: #{inspect(ntps)}")
 
-    File.write("/root/ntps.txt", ntps, [:write])
+    if ntps != "" do
+      File.write("/root/ntps.txt", ntps, [:write])
 
     result = File.read("/root/ntps.txt")
 
@@ -689,6 +694,7 @@ defmodule VintageNetWizard.BackendServer do
         NervesTime.set_ntp_servers(servers)
       end
       {:error, _posix} -> ""
+    end
     end
 
     {:noreply, state}
