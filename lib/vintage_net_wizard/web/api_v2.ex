@@ -217,7 +217,7 @@ defmodule VintageNetWizard.Web.ApiV2 do
   end
 
   # Configuration validation and application helpers
-  def validate_config(config) do
+  defp validate_config(config) do
     with {:ok, _} <- validate_lock_type(config),
          {:ok, _} <- validate_wifi_config(config),
          {:ok, _} <- validate_mobile_network(config),
@@ -230,45 +230,44 @@ defmodule VintageNetWizard.Web.ApiV2 do
     end
   end
 
-  defp validate_lock_type(%{lockType: type}) when type in ["retrofit", "imbera", "southco"], do: {:ok, type}
-  defp validate_lock_type(%{lockType: _}), do: {:error, "Invalid lock type"}
-  defp validate_lock_type(_), do: {:ok, nil}  # Optional field
+  defp validate_lock_type(%{"lockType" => type}) when type in ["retrofit", "imbera", "southco"], do: {:ok, type}
+  defp validate_lock_type(_), do: {:error, "Invalid lock type"}
 
-  defp validate_wifi_config(%{wifi: %{method: method} = wifi}) when method in ["dhcp", "static"] do
+  defp validate_wifi_config(%{"wifi" => %{"method" => method} = wifi}) when method in ["dhcp", "static"] do
     case method do
       "static" -> validate_static_config(wifi)
       "dhcp" -> {:ok, wifi}
     end
   end
-  defp validate_wifi_config(%{wifi: _}), do: {:error, "Invalid WiFi configuration"}
+  defp validate_wifi_config(%{"wifi" => _}), do: {:error, "Invalid WiFi configuration"}
   defp validate_wifi_config(_), do: {:ok, nil}  # Optional field
 
-  defp validate_static_config(%{static_config: config}) do
-    with true <- is_valid_ip?(config.address),
-         true <- is_valid_ip?(config.netmask),
-         true <- is_valid_ip?(config.gateway),
-         true <- is_valid_nameservers?(config.name_servers) do
+  defp validate_static_config(%{"static_config" => config}) do
+    with true <- is_valid_ip?(config["address"]),
+         true <- is_valid_ip?(config["netmask"]),
+         true <- is_valid_ip?(config["gateway"]),
+         true <- is_valid_nameservers?(config["name_servers"]) do
       {:ok, config}
     else
       false -> {:error, "Invalid static IP configuration"}
     end
   end
 
-  defp validate_mobile_network(%{mobileNetwork: %{apn: apn}}) when is_binary(apn), do: {:ok, apn}
-  defp validate_mobile_network(%{mobileNetwork: %{apn: ""}}), do: {:ok, nil}
-  defp validate_mobile_network(%{mobileNetwork: _}), do: {:error, "Invalid mobile network configuration"}
+  defp validate_mobile_network(%{"mobileNetwork" => %{"apn" => apn}}) when is_binary(apn), do: {:ok, apn}
+  defp validate_mobile_network(%{"mobileNetwork" => %{"apn" => ""}}), do: {:ok, nil}
+  defp validate_mobile_network(%{"mobileNetwork" => _}), do: {:error, "Invalid mobile network configuration"}
   defp validate_mobile_network(_), do: {:ok, nil}  # Optional field
 
-  defp validate_hotspot_output(%{hotspotOutput: output}) when output in ["wlan0", "wwan0"], do: {:ok, output}
-  defp validate_hotspot_output(%{hotspotOutput: ""}), do: {:ok, nil}
-  defp validate_hotspot_output(%{hotspotOutput: _}), do: {:error, "Invalid hotspot output"}
+  defp validate_hotspot_output(%{"hotspotOutput" => output}) when output in ["wlan0", "wwan0"], do: {:ok, output}
+  defp validate_hotspot_output(%{"hotspotOutput" => ""}), do: {:ok, nil}
+  defp validate_hotspot_output(%{"hotspotOutput" => _}), do: {:error, "Invalid hotspot output"}
   defp validate_hotspot_output(_), do: {:ok, nil}  # Optional field
 
-  defp validate_nama_config(%{nama: %{profile: profile}}) when is_integer(profile), do: {:ok, profile}
-  defp validate_nama_config(%{nama: _}), do: {:error, "Invalid NAMA configuration"}
+  defp validate_nama_config(%{"nama" => %{"profile" => profile}}) when is_integer(profile), do: {:ok, profile}
+  defp validate_nama_config(%{"nama" => _}), do: {:error, "Invalid NAMA configuration"}
   defp validate_nama_config(_), do: {:ok, nil}  # Optional field
 
-  defp validate_ntp_config(%{ntp: ntp}) when is_binary(ntp) do
+  defp validate_ntp_config(%{"ntp" => ntp}) when is_binary(ntp) do
     if ntp == "" do
       {:ok, nil}
     else
@@ -279,10 +278,10 @@ defmodule VintageNetWizard.Web.ApiV2 do
       end
     end
   end
-  defp validate_ntp_config(%{ntp: _}), do: {:error, "Invalid NTP configuration"}
+  defp validate_ntp_config(%{"ntp" => _}), do: {:error, "Invalid NTP configuration"}
   defp validate_ntp_config(_), do: {:ok, nil}  # Optional field
 
-  def apply_config(config) do
+  defp apply_config(config) do
     # Apply each configuration section if present
     with :ok <- maybe_apply_lock_type(config),
          :ok <- maybe_apply_wifi_config(config),
@@ -294,34 +293,34 @@ defmodule VintageNetWizard.Web.ApiV2 do
     end
   end
 
-  def maybe_apply_lock_type(%{lockType: type}) when not is_nil(type) do
+  defp maybe_apply_lock_type(%{"lockType" => type}) when not is_nil(type) do
     Logger.info("Saving lock type #{inspect(type)}")
     BackendServer.save_lock(type)
     :ok
   end
-  def maybe_apply_lock_type(_), do: :ok
+  defp maybe_apply_lock_type(_), do: :ok
 
-  defp maybe_apply_wifi_config(%{wifi: wifi}) when not is_nil(wifi) do
-    Logger.info("Saving WiFi method #{inspect(wifi.method)}")
+  defp maybe_apply_wifi_config(%{"wifi" => wifi}) when not is_nil(wifi) do
+    Logger.info("Saving WiFi method #{inspect(wifi["method"])}")
     # Apply network method and configurations
-    case wifi.method do
+    case wifi["method"] do
       "static" ->
         BackendServer.save_method(%{
           method: :static,
-          address: wifi.static_config.address,
-          netmask: wifi.static_config.netmask,
-          gateway: wifi.static_config.gateway,
-          name_servers: String.split(wifi.static_config.name_servers, ",")
+          address: wifi["static_config"]["address"],
+          netmask: wifi["static_config"]["netmask"],
+          gateway: wifi["static_config"]["gateway"],
+          name_servers: String.split(wifi["static_config"]["name_servers"], ",")
         })
       "dhcp" ->
         BackendServer.save_method(%{method: :dhcp})
     end
 
-    Logger.info("Saving WiFi networks #{inspect(wifi.networks)}")
+    Logger.info("Saving WiFi networks #{inspect(wifi["networks"])}")
 
     # Apply WiFi networks if provided
-    if wifi.networks do
-      Enum.each(wifi.networks, fn network ->
+    if wifi["networks"] do
+      Enum.each(wifi["networks"], fn network ->
         {:ok, cfg} = WiFiConfiguration.json_to_network_config(network)
         BackendServer.save(cfg)
       end)
@@ -342,26 +341,25 @@ defmodule VintageNetWizard.Web.ApiV2 do
   end
   defp maybe_apply_wifi_config(_), do: :ok
 
-  defp maybe_apply_mobile_network(%{mobileNetwork: %{apn: apn}}) when not is_nil(apn) do
+  defp maybe_apply_mobile_network(%{"mobileNetwork" => %{"apn" => apn}}) when not is_nil(apn) do
     BackendServer.save_apn(apn)
     :ok
   end
   defp maybe_apply_mobile_network(_), do: :ok
 
-  defp maybe_apply_hotspot_output(%{hotspotOutput: output}) when not is_nil(output) do
+  defp maybe_apply_hotspot_output(%{"hotspotOutput" => output}) when not is_nil(output) do
     BackendServer.save_internet(output)
     :ok
   end
   defp maybe_apply_hotspot_output(_), do: :ok
 
-  defp maybe_apply_nama_config(%{nama: %{profile: profile}}) when not is_nil(profile) do
-    # Assuming there's a function to enable/disable NAMA
+  defp maybe_apply_nama_config(%{"nama" => %{"profile" => profile}}) when not is_nil(profile) do
     In2Firmware.Services.Operations.ReviewHW.state_profile(profile)
     :ok
   end
   defp maybe_apply_nama_config(_), do: :ok
 
-  defp maybe_apply_ntp_config(%{ntp: ntp}) when not is_nil(ntp) do
+  defp maybe_apply_ntp_config(%{"ntp" => ntp}) when not is_nil(ntp) do
     BackendServer.save_ntp(ntp)
     :ok
   end
