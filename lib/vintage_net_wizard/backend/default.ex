@@ -147,9 +147,17 @@ defmodule VintageNetWizard.Backend.Default do
     end
   end
 
+  def handle_info(:init_stream_gst, state) do
+
+    In2Firmware.Services.Operations.ReviewHW.init_cameras()
+
+    {:noreply, state}
+  end
+
   def handle_info(_info, state) do
     {:noreply, state}
   end
+
 
   defp apply_configurations(wifi_configurations, state) do
 

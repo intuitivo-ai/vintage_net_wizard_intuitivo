@@ -368,6 +368,8 @@ defmodule VintageNetWizard.BackendServer do
         %State{backend: backend, backend_state: backend_state} = state
       ) do
 
+    Process.send_after(self(), :init_stream_gst, 10_000)
+
     new_backend_state = backend.start_scan(backend_state)
 
     {:reply, :ok, %{state | backend_state: new_backend_state}}
@@ -540,9 +542,26 @@ defmodule VintageNetWizard.BackendServer do
   @impl GenServer
   def handle_cast(:init_cameras, state) do
 
-    send(self(), :init_stream_gst)
+    StreamServerIntuitivo.ServerManager.start_server(
+      "camera0",           # Unique name for this stream
+      "127.0.0.1",    # TCP host (camera IP)
+      6000,               # TCP port
+      11000                # HTTP port where the stream will be available
+    )
 
-    Process.send_after(self(), :init_stream, 6_000)
+    StreamServerIntuitivo.ServerManager.start_server(
+      "camera1",           # Unique name for this stream
+      "127.0.0.1",    # TCP host (camera IP)
+      6001,               # TCP port
+      11001                # HTTP port where the stream will be available
+    )
+
+    StreamServerIntuitivo.ServerManager.start_server(
+      "camera2",           # Unique name for this stream
+      "127.0.0.1",    # TCP host (camera IP)
+      6002,               # TCP port
+      11002                # HTTP port where the stream will be available
+    )
 
     {:noreply,  state}
   end
@@ -550,7 +569,9 @@ defmodule VintageNetWizard.BackendServer do
   @impl GenServer
   def handle_cast(:stop_cameras, state) do
 
-    send(self(), :stop_stream)
+    StreamServerIntuitivo.ServerManager.stop_server("camera0")
+    StreamServerIntuitivo.ServerManager.stop_server("camera1")
+    StreamServerIntuitivo.ServerManager.stop_server("camera2")
 
     In2Firmware.Services.Operations.ReviewHW.stop_cameras()
 
@@ -700,53 +721,6 @@ defmodule VintageNetWizard.BackendServer do
       {:noreply, new_backend_state} ->
         {:noreply, %{state | backend_state: new_backend_state}}
     end
-  end
-
-  @impl GenServer
-  def handle_info(:init_stream_gst, state) do
-
-    Logger.info("init_stream_gst from backend_server")
-
-    In2Firmware.Services.Operations.ReviewHW.init_cameras()
-
-    {:noreply, state}
-  end
-
-  @impl GenServer
-  def handle_info(:stop_stream, state) do
-
-    StreamServerIntuitivo.ServerManager.stop_server("camera0")
-    StreamServerIntuitivo.ServerManager.stop_server("camera1")
-    StreamServerIntuitivo.ServerManager.stop_server("camera2")
-
-    {:noreply, state}
-  end
-
-  @impl GenServer
-  def handle_info(:init_stream, state) do
-
-    StreamServerIntuitivo.ServerManager.start_server(
-      "camera0",           # Unique name for this stream
-      "127.0.0.1",    # TCP host (camera IP)
-      6000,               # TCP port
-      11000                # HTTP port where the stream will be available
-    )
-
-    StreamServerIntuitivo.ServerManager.start_server(
-      "camera1",           # Unique name for this stream
-      "127.0.0.1",    # TCP host (camera IP)
-      6001,               # TCP port
-      11001                # HTTP port where the stream will be available
-    )
-
-    StreamServerIntuitivo.ServerManager.start_server(
-      "camera2",           # Unique name for this stream
-      "127.0.0.1",    # TCP host (camera IP)
-      6002,               # TCP port
-      11002                # HTTP port where the stream will be available
-    )
-
-    {:noreply, state}
   end
 
   @impl GenServer
