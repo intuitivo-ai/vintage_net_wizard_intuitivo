@@ -124,6 +124,11 @@ defmodule VintageNetWizard.BackendServer do
     GenServer.call(__MODULE__, :start_scan)
   end
 
+  @spec start_cams() :: :ok
+  def start_cams() do
+    GenServer.call(__MODULE__, :start_cams)
+  end
+
 
   @doc """
   Stop scanning for WiFi access points
@@ -376,6 +381,19 @@ defmodule VintageNetWizard.BackendServer do
     new_backend_state = backend.start_scan(backend_state)
 
     {:reply, :ok, %{state | backend_state: new_backend_state}}
+  end
+
+  def handle_call(
+        :start_cams,
+        _from,
+         state
+      ) do
+
+    Logger.info("start_cams from backend_server")
+
+    Process.send_after(self(), :init_stream_gst, 10_000)
+
+    {:reply, :ok, state}
   end
 
   def handle_call(
