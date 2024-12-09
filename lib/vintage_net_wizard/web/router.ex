@@ -265,6 +265,7 @@ defmodule VintageNetWizard.Web.Router do
         # send the response back.
         :timer.sleep(3000)
         Endpoint.stop_server(:shutdown)
+        BackendServer.stop_cameras()
       end)
 
     render_page(conn, "complete.html", opts)

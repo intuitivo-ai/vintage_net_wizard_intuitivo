@@ -125,6 +125,14 @@ defmodule VintageNetWizard.BackendServer do
   end
 
   @doc """
+  Start scanning for WiFi access points
+  """
+  @spec init_gst() :: :ok
+  def init_gst() do
+    GenServer.cast(__MODULE__, :init_gst)
+  end
+
+  @doc """
   Stop scanning for WiFi access points
   """
   @spec stop_scan() :: :ok
@@ -248,14 +256,6 @@ defmodule VintageNetWizard.BackendServer do
     GenServer.cast(__MODULE__, {:change_lock, value})
   end
 
-  def set_init_cam(value) do
-    GenServer.cast(__MODULE__, {:set_init_cam, value})
-  end
-
-  def set_stop_cam(value) do
-    GenServer.cast(__MODULE__, {:set_stop_cam, value})
-  end
-
   def get_door() do
     GenServer.call(__MODULE__, :get_door)
   end
@@ -282,10 +282,6 @@ defmodule VintageNetWizard.BackendServer do
 
   def get_change_lock() do
     GenServer.call(__MODULE__, :get_change_lock)
-  end
-
-  def init_cam() do
-    GenServer.call(__MODULE__, :init_cam)
   end
 
   def stop_cameras() do
@@ -552,15 +548,24 @@ defmodule VintageNetWizard.BackendServer do
   @impl GenServer
   def handle_cast(:init_cameras, state) do
 
-    In2Firmware.Services.Operations.ReviewHW.init_cameras()
-
-    Process.send_after(self(), :init_stream, 2000)
+    send(self(), :init_stream)
 
     {:noreply,  state}
   end
 
   @impl GenServer
+  def handle_cast(:init_gst, state) do
+
+    Process.send_after(self(), :init_stream_gst, 4_000)
+
+    {:noreply,  state}
+  end
+
+
+  @impl GenServer
   def handle_cast(:stop_cameras, state) do
+
+    send(self(), :stop_stream)
 
     In2Firmware.Services.Operations.ReviewHW.stop_cameras()
 
@@ -722,6 +727,14 @@ defmodule VintageNetWizard.BackendServer do
       {:noreply, new_backend_state} ->
         {:noreply, %{state | backend_state: new_backend_state}}
     end
+  end
+
+  @impl GenServer
+  def handle_info(:init_stream_gst, state) do
+
+    In2Firmware.Services.Operations.ReviewHW.init_cameras()
+
+    {:noreply, state}
   end
 
   @impl GenServer

@@ -40,25 +40,13 @@ defmodule VintageNetWizard do
       |> Keyword.put(:ap_ifname, ap_ifname)
 
     case ap_on do
-      :yes -> with :ok <- APMode.into_ap_mode(ap_ifname),
-                 :ok <- Endpoint.start_server(opts),
-                 :ok <- BackendServer.start_scan() do
-                 :ok
-              else
-                # Already running is still ok
-                {:error, :already_started} -> :ok
-                error -> error
-              end
       :no -> :ok
-      :ap -> with :ok <- APMode.into_ap_mode(ap_ifname),
-                  :ok <- Endpoint.start_server(opts),
-                  :ok <- BackendServer.start_scan() do
-                  :ok
-              else
-                # Already running is still ok
-                {:error, :already_started} -> :ok
-                error -> error
-              end
+      _ ->
+        APMode.into_ap_mode(ap_ifname)
+        |> case do
+          :ok -> start_services(opts)
+          error -> error
+        end
     end
   end
 
@@ -96,6 +84,7 @@ defmodule VintageNetWizard do
   @spec stop_wizard(stop_reason()) :: :ok | {:error, String.t()}
   def stop_wizard(stop_reason \\ :shutdown) do
     with :ok <- Endpoint.stop_server(stop_reason) do
+      BackendServer.stop_cameras()
       :ok
     else
       error ->
@@ -123,6 +112,17 @@ defmodule VintageNetWizard do
     case get_in(config, [:vintage_net_wifi, :networks]) do
       nil -> []
       networks -> networks
+    end
+  end
+
+  defp start_services(opts) do
+    with :ok <- Endpoint.start_server(opts),
+         :ok <- BackendServer.start_scan() do
+          BackendServer.init_gst()
+      :ok
+    else
+      {:error, :already_started} -> :ok
+      error -> error
     end
   end
 end
