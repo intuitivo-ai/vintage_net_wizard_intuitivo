@@ -881,7 +881,7 @@ defmodule VintageNetWizard.BackendServer do
       else
         "static"
       end
-        "static"
+      {:error, _posix} -> "static"
     end
   end
 
@@ -903,7 +903,7 @@ defmodule VintageNetWizard.BackendServer do
       else
         %{}
       end
-      %{}
+      {:error, _posix} -> %{}
     end
   end
 
