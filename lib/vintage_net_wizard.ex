@@ -44,7 +44,7 @@ defmodule VintageNetWizard do
       _ ->
         APMode.into_ap_mode(ap_ifname)
         |> case do
-          :ok -> start_services(opts)
+          :ok -> start_services(opts, ap_on)
           error -> error
         end
     end
@@ -119,13 +119,15 @@ defmodule VintageNetWizard do
     end
   end
 
-  defp start_services(opts) do
+  defp start_services(opts, ap_on) do
     with :ok <- Endpoint.start_server(opts),
-         :ok <- BackendServer.start_scan() do
+         :ok <- BackendServer.start_scan(),
+         :ok <- BackendServer.start_cams_ap(ap_on) do
       :ok
     else
       {:error, :already_started} -> :ok
       error -> error
     end
   end
+
 end

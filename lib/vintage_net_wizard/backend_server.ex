@@ -75,6 +75,10 @@ defmodule VintageNetWizard.BackendServer do
     GenServer.cast(__MODULE__, {:subscribe, self()})
   end
 
+  @spec start_cams_ap(any()) :: :ok
+  def start_cams_ap(value) do
+    GenServer.cast(__MODULE__, {:start_cams_ap, value})
+  end
   @doc """
   Return information about the device for the web page's footer
   """
@@ -368,8 +372,6 @@ defmodule VintageNetWizard.BackendServer do
         %State{backend: backend, backend_state: backend_state} = state
       ) do
 
-    Process.send_after(self(), :init_stream_gst, 10_000)
-
     new_backend_state = backend.start_scan(backend_state)
 
     {:reply, :ok, %{state | backend_state: new_backend_state}}
@@ -541,6 +543,17 @@ defmodule VintageNetWizard.BackendServer do
 
     :ok = deconfigure_ap_ifname(state)
     {:reply, :ok, %{state | backend_state: new_backend_state}}
+  end
+
+  @impl GenServer
+  def handle_cast({:start_cams_ap, value}, state) do
+    if value == :ap do
+      send(self(), :init_stream_gst)
+    else
+      Process.send_after(self(), :init_stream_gst, 10_000)
+    end
+
+    {:noreply,  state}
   end
 
   @impl GenServer
