@@ -18,7 +18,7 @@ defmodule VintageNetWizard.Web.Router do
 
   alias VintageNetWizard.Web.{ApiV2}
 
-  #plug(Plug.Static, from: {:vintage_net_wizard, "priv/static"}, at: "/")
+  plug(Plug.Static, from: {:vintage_net_wizard, "priv/static"}, at: "/")
   plug(Plug.Parsers, parsers: [Plug.Parsers.URLENCODED, :json], json_decoder: Jason)
   # This route is polled by the front end to update its list of access points.
   # This can mean the user could potentially have the page open without knowing
@@ -57,18 +57,7 @@ defmodule VintageNetWizard.Web.Router do
   end
 
   get "/" do
-    case BackendServer.configurations() do
-      [] ->
-        redirect(conn, "/networks")
-
-      configs ->
-        render_page(conn, "index.html", opts,
-          configs: configs,
-          configuration_status: configuration_status_details(),
-          format_security: &WiFiConfiguration.security_name/1,
-          get_key_mgmt: &WiFiConfiguration.get_key_mgmt/1
-        )
-    end
+      render_page(conn, "index.html", opts)
   end
 
   post "/ssid/:ssid" do

@@ -29,6 +29,10 @@ defmodule VintageNetWizard.Web.ApiV2 do
 
   @valid_lock_types ["retrofit", "imbera", "southco", "duenorth"]
 
+  @type error_type ::
+    {:error, :invalid_state | :missing_state | :missing_config | :password_required} |
+    {:error, :invalid_config, [String.t()]}
+
   alias Plug.Conn
   alias VintageNetWizard.BackendServer
   alias VintageNetWizard.Web.Endpoint
@@ -194,6 +198,22 @@ defmodule VintageNetWizard.Web.ApiV2 do
     send_json(conn, 200, config)
   end
 
+  put "/complete" do
+    :ok = BackendServer.complete()
+    BackendServer.stop_cameras()
+
+      _ =
+        Task.Supervisor.start_child(VintageNetWizard.TaskSupervisor, fn ->
+          # We don't want to stop the server before we
+          # send the response back.
+          :timer.sleep(3000)
+          Endpoint.stop_server(:shutdown)
+        end)
+
+      send_json(conn, 200, "")
+  end
+
+
   put "/config" do
     case get_body(conn) do
       config when is_map(config) and map_size(config) > 0 ->
@@ -326,18 +346,14 @@ defmodule VintageNetWizard.Web.ApiV2 do
       end)
     end
 
-    :ok = BackendServer.complete()
-    BackendServer.stop_cameras()
+    case BackendServer.apply() do
+      :ok ->
+        :ok
 
-      _ =
-        Task.Supervisor.start_child(VintageNetWizard.TaskSupervisor, fn ->
-          # We don't want to stop the server before we
-          # send the response back.
-          :timer.sleep(3000)
-          Endpoint.stop_server(:shutdown)
-        end)
+      {:error, :no_configurations} ->
+        {:error, "No configurations available"}
+    end
 
-    :ok
   end
   defp maybe_apply_wifi_config(_), do: :ok
 
