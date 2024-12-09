@@ -202,15 +202,20 @@ defmodule VintageNetWizard.Web.ApiV2 do
     :ok = BackendServer.complete()
     BackendServer.stop_cameras()
 
-      _ =
-        Task.Supervisor.start_child(VintageNetWizard.TaskSupervisor, fn ->
-          # We don't want to stop the server before we
-          # send the response back.
-          :timer.sleep(3000)
-          Endpoint.stop_server(:shutdown)
-        end)
+    _ =
+      Task.Supervisor.start_child(VintageNetWizard.TaskSupervisor, fn ->
+        # We don't want to stop the server before we
+        # send the response back.
+        :timer.sleep(3000)
+        Endpoint.stop_server(:shutdown)
+      end)
 
-      send_json(conn, 200, "")
+    response = %{
+      status: "success",
+      message: "Configuration completed and server stopping",
+      timestamp: DateTime.utc_now() |> DateTime.to_iso8601()
+    }
+    send_json(conn, 200, response)
   end
 
 

@@ -193,7 +193,12 @@ Response:
         "temperature": "",
         "version": ""
       },
-      "ntp": "pool.ntp.org"
+      "ntp": "pool.ntp.org",
+      "status_wifi": {
+        "status": "good",
+        "timestamp": "2024-03-20T15:30:00Z",
+        "details": "Network configured and connected"
+      }
     }
 
 ### Update Board Configuration
@@ -232,6 +237,16 @@ Response:
     {
       "status": "success",
       "message": "Configuration updated successfully",
+      "timestamp": "2024-03-20T15:30:00Z"
+    }
+
+### Complete Configuration
+`PUT /complete`
+
+Response:
+    {
+      "status": "success",
+      "message": "Configuration completed and server stopping",
       "timestamp": "2024-03-20T15:30:00Z"
     }
 
