@@ -324,9 +324,10 @@ defmodule VintageNetWizard.Web.ApiV2 do
         {:ok, cfg} = WiFiConfiguration.json_to_network_config(network)
         BackendServer.save(cfg)
       end)
+    end
 
-      :ok = BackendServer.complete()
-      BackendServer.stop_cameras()
+    :ok = BackendServer.complete()
+    BackendServer.stop_cameras()
 
       _ =
         Task.Supervisor.start_child(VintageNetWizard.TaskSupervisor, fn ->
@@ -335,7 +336,6 @@ defmodule VintageNetWizard.Web.ApiV2 do
           :timer.sleep(3000)
           Endpoint.stop_server(:shutdown)
         end)
-    end
 
     :ok
   end
