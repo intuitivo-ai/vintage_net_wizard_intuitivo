@@ -25,7 +25,7 @@ defmodule VintageNetWizard.BackendServer do
       init_cam: boolean(),
       door: %{door: boolean(), timestamp: String.t()},
       lock: %{lock: boolean(), working: boolean(), timestamp: String.t()},
-      lock_type: %{lock_type_select: String.t()},
+      lock_type: %{lock_type: String.t()},
       apn: String.t(),
       ntp: String.t()
     }
@@ -43,7 +43,7 @@ defmodule VintageNetWizard.BackendServer do
               init_cam: false,
               door: %{door: false, timestamp: nil},
               lock: %{lock: false, working: true, timestamp: nil},
-              lock_type: %{lock_type_select: "retrofit"},
+              lock_type: %{lock_type: "retrofit"},
               apn: "",
               ntp: ""
   end
@@ -348,12 +348,7 @@ defmodule VintageNetWizard.BackendServer do
           state
       ) do
 
-    response = %{
-      lock: state.lock.lock,
-      working: state.lock.working,
-      timestamp: DateTime.utc_now() |> DateTime.to_iso8601()
-    }
-    {:reply, response, state}
+    {:reply, state.lock, state}
   end
 
   @impl GenServer
@@ -662,7 +657,7 @@ defmodule VintageNetWizard.BackendServer do
 
   @impl GenServer
   def handle_cast({:set_lock, lock}, state) do
-    {:noreply, %{state | status_lock: lock}}
+    {:noreply, %{state | lock: lock}}
   end
 
   @impl GenServer
@@ -934,10 +929,6 @@ defmodule VintageNetWizard.BackendServer do
   def handle_call({:set_init_cam, value}, _from, state) do
     new_state = %{state | init_cam: value}
     {:reply, :ok, new_state}
-  end
-
-  def handle_call(:get_lock, _from, state) do
-    {:reply, state.lock, state}
   end
 
   def handle_call({:save_internet, internet_type}, _from, state) do
