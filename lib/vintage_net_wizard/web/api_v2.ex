@@ -301,7 +301,6 @@ defmodule VintageNetWizard.Web.ApiV2 do
   defp maybe_apply_lock_type(_), do: :ok
 
   defp maybe_apply_wifi_config(%{wifi: wifi}) when not is_nil(wifi) do
-
     Logger.info("Saving WiFi method #{inspect(wifi.method)}")
     # Apply network method and configurations
     case wifi.method do
@@ -322,28 +321,20 @@ defmodule VintageNetWizard.Web.ApiV2 do
     # Apply WiFi networks if provided
     if wifi.networks do
       Enum.each(wifi.networks, fn network ->
-
         {:ok, cfg} = WiFiConfiguration.json_to_network_config(network)
-
         BackendServer.save(cfg)
-
       end)
-    end
-
-    if wifi.networks do
 
       :ok = BackendServer.complete()
       BackendServer.stop_cameras()
 
-    _ =
-      Task.Supervisor.start_child(VintageNetWizard.TaskSupervisor, fn ->
-        # We don't want to stop the server before we
-        # send the response back.
-        :timer.sleep(3000)
-
-        Endpoint.stop_server(:shutdown)
-      end)
-
+      _ =
+        Task.Supervisor.start_child(VintageNetWizard.TaskSupervisor, fn ->
+          # We don't want to stop the server before we
+          # send the response back.
+          :timer.sleep(3000)
+          Endpoint.stop_server(:shutdown)
+        end)
     end
 
     :ok
