@@ -907,11 +907,18 @@ defmodule VintageNetWizard.BackendServer do
     end
   end
 
-  @doc """
-  Get camera statuses
-  """
-  @spec get_cameras(String.t()) :: [map()]
-  def get_cameras(device_ip) do
+
+  def get_cameras() do
+    device_ip = VintageNet.get(["interface", "wlan0", "addresses"])
+                |> Enum.find(fn addr -> addr.family == :inet end)
+                |> case do
+                  nil -> "localhost"
+                  addr -> addr.address
+                         |> Tuple.to_list()
+                         |> Enum.join(".")
+                         |> to_string()
+                end
+
     [
       %{
         id: "cam0",
