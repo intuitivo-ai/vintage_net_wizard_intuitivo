@@ -569,6 +569,8 @@ defmodule VintageNetWizard.BackendServer do
   @impl GenServer
   def handle_cast(:stop_cameras, state) do
 
+    Logger.info("stop_cameras from backend_server")
+
     StreamServerIntuitivo.ServerManager.stop_server("camera0")
     StreamServerIntuitivo.ServerManager.stop_server("camera1")
     StreamServerIntuitivo.ServerManager.stop_server("camera2")

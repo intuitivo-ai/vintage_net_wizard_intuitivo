@@ -83,8 +83,10 @@ defmodule VintageNetWizard do
   """
   @spec stop_wizard(stop_reason()) :: :ok | {:error, String.t()}
   def stop_wizard(stop_reason \\ :shutdown) do
+
+    BackendServer.stop_cameras()
+
     with :ok <- Endpoint.stop_server(stop_reason) do
-      BackendServer.stop_cameras()
       :ok
     else
       error ->
