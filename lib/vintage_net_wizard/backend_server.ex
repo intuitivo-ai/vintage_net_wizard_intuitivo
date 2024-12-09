@@ -480,9 +480,9 @@ defmodule VintageNetWizard.BackendServer do
     end
   end
 
-  def handle_call(:get_board_config, _from, state) do
+  def handle_call(:get_board_config, _from, %State{backend: backend, backend_state: backend_state} = state) do
 
-    status = configuration_status()
+    status = backend.configuration_status(backend_state)
 
     config = %{
       lockType: state.lock_type["lock_type"],
