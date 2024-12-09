@@ -138,6 +138,14 @@ defmodule VintageNetWizard.BackendServer do
     GenServer.call(__MODULE__, {:save, config})
   end
 
+  @doc """
+  Get complete board configuration
+  """
+  @spec get_board_config() :: map()
+  def get_board_config() do
+    GenServer.call(__MODULE__, :get_board_config)
+  end
+
   def save_method(config) do
     GenServer.cast(__MODULE__, {:save_method, config})
   end
@@ -246,14 +254,6 @@ defmodule VintageNetWizard.BackendServer do
     GenServer.call(__MODULE__, :get_door)
   end
 
-  def get_apn() do
-    GenServer.call(__MODULE__, :get_apn)
-  end
-
-  def get_ntp() do
-    GenServer.call(__MODULE__, :get_ntp)
-  end
-
   def get_state_imbera() do
     GenServer.call(__MODULE__, :get_state_imbera)
   end
@@ -309,6 +309,9 @@ defmodule VintageNetWizard.BackendServer do
 
     ap_ifname = Keyword.fetch!(opts, :ap_ifname)
 
+    send(self(), :get_ntp)
+    send(self(), :get_apn)
+    send(self(), :get_internet_select)
     {:ok,
      %State{
        configurations: configurations,
@@ -389,35 +392,6 @@ defmodule VintageNetWizard.BackendServer do
       ) do
 
     {:reply, state.door, state}
-  end
-
-  @impl GenServer
-  def handle_call(
-        :get_apn,
-        _from,
-          state
-      ) do
-
-    apn = read_file("/root/apn.txt")
-
-    {:reply, %{apn: apn}, state}
-  end
-
-  @impl GenServer
-  def handle_call(
-        :get_ntp,
-        _from,
-          state
-      ) do
-
-    result = File.read("/root/ntps.txt")
-
-    list = case result do
-      {:ok, binary} -> binary
-      {:error, _posix} -> ""
-    end
-
-    {:reply, %{ntp: list}, state}
   end
 
   @impl GenServer
@@ -610,6 +584,27 @@ defmodule VintageNetWizard.BackendServer do
       {:error, _} = error ->
         {:reply, error, state}
     end
+  end
+
+  def handle_call(:get_board_config, _from, state) do
+    config = %{
+      lockType: state.lock_type,
+      wifi: %{
+        networks: get_wifi_networks(state),
+        method: get_network_method(),
+        static_config: get_static_config()
+      },
+      mobileNetwork: %{
+        apn: state.apn
+      },
+      hotspotOutput: state.internet_select || "disabled",
+      nama: %{
+        enabled: state.state_nama.enabled || false,
+        profile: state.state_profile.profile || ""
+      },
+      ntp: state.ntp
+    }
+    {:reply, config, state}
   end
 
   def handle_call(:reset, _from, %State{backend: backend, backend_state: backend_state} = state) do
@@ -807,6 +802,45 @@ defmodule VintageNetWizard.BackendServer do
     end
   end
 
+  @impl GenServer
+  def handle_info(:get_ntp, state) do
+
+    result = File.read("/root/ntps.txt")
+
+    list = case result do
+      {:ok, binary} -> binary
+      {:error, _posix} -> ""
+    end
+
+    {:noreply, %{state | ntp: list}}
+  end
+
+  @impl GenServer
+  def handle_info(:get_apn, state) do
+
+    result = read_file("/root/apn.txt")
+
+    apn = case result do
+      {:ok, binary} -> binary
+      {:error, _posix} -> ""
+    end
+
+    {:noreply, %{state | apn: apn}}
+  end
+
+  @impl GenServer
+  def handle_info(:get_internet_select, state) do
+
+    result = read_file("/root/internet.txt")
+
+    internet_select = case result do
+      {:ok, binary} -> binary
+      {:error, _posix} -> ""
+    end
+
+    {:noreply, %{state | internet_select: internet_select}}
+  end
+
   defp build_config_list(configs) do
     configs
     |> Enum.into([], &elem(&1, 1))
@@ -873,14 +907,6 @@ defmodule VintageNetWizard.BackendServer do
     end
   end
 
-  def get_internet do
-    GenServer.call(__MODULE__, :get_internet)
-  end
-
-  def save_internet(internet_select) do
-    GenServer.call(__MODULE__, {:save_internet, internet_select})
-  end
-
   def get_state_nama do
     GenServer.call(__MODULE__, :get_state_nama)
   end
@@ -893,29 +919,8 @@ defmodule VintageNetWizard.BackendServer do
     GenServer.call(__MODULE__, {:set_init_cam, value})
   end
 
-  def get_apn do
-    GenServer.call(__MODULE__, :get_apn)
-  end
-
   def save_apn(apn) do
     GenServer.call(__MODULE__, {:save_apn, apn})
-  end
-
-  def get_ntp do
-    GenServer.call(__MODULE__, :get_ntp)
-  end
-
-  def save_ntp(ntp) do
-    GenServer.call(__MODULE__, {:save_ntp, ntp})
-  end
-
-  def handle_call(:get_internet, _from, state) do
-    {:reply, state.internet_select, state}
-  end
-
-  def handle_call({:save_internet, internet_select}, _from, state) do
-    new_state = %{state | internet_select: internet_select}
-    {:reply, :ok, new_state}
   end
 
   def handle_call(:get_state_nama, _from, state) do
@@ -929,21 +934,6 @@ defmodule VintageNetWizard.BackendServer do
   def handle_call({:set_init_cam, value}, _from, state) do
     new_state = %{state | init_cam: value}
     {:reply, :ok, new_state}
-  end
-
-  def handle_call({:save_internet, internet_type}, _from, state) do
-    case validate_internet_type(internet_type) do
-      {:ok, validated_type} ->
-        new_state = %{state | internet_select: validated_type}
-        {:reply, :ok, new_state}
-      {:error, _} = error ->
-        {:reply, error, state}
-    end
-  end
-
-  def handle_call(:get_apn, _from, state) do
-    apn = read_file("/root/apn.txt")
-    {:reply, %{apn: apn}, state}
   end
 
   def handle_call({:save_apn, apn}, _from, state) do
@@ -977,35 +967,6 @@ defmodule VintageNetWizard.BackendServer do
 
   defp validate_internet_type(type) when type in ["wifi", "ethernet"], do: {:ok, type}
   defp validate_internet_type(_), do: {:error, :invalid_internet_type}
-
-  @doc """
-  Get complete board configuration
-  """
-  @spec get_board_config() :: map()
-  def get_board_config() do
-    GenServer.call(__MODULE__, :get_board_config)
-  end
-
-  def handle_call(:get_board_config, _from, state) do
-    config = %{
-      lockType: state.lock_type.lock_type_select,
-      wifi: %{
-        networks: get_wifi_networks(state),
-        method: get_network_method(),
-        static_config: get_static_config()
-      },
-      mobileNetwork: %{
-        apn: state.apn
-      },
-      hotspotOutput: state.internet_select || "wifi",
-      nama: %{
-        enabled: state.state_nama.enabled || false,
-        profile: state.state_profile.profile || ""
-      },
-      ntp: state.ntp
-    }
-    {:reply, config, state}
-  end
 
   # Helper functions for board config
   defp get_wifi_networks(state) do
