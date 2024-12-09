@@ -556,7 +556,7 @@ defmodule VintageNetWizard.BackendServer do
   @impl GenServer
   def handle_cast(:init_gst, state) do
 
-    Process.send_after(self(), :init_stream_gst, 4_000)
+    Process.send_after(self(), :init_stream_gst, 6_000)
 
     {:noreply,  state}
   end
@@ -731,6 +731,8 @@ defmodule VintageNetWizard.BackendServer do
 
   @impl GenServer
   def handle_info(:init_stream_gst, state) do
+
+    Logger.info("init_stream_gst from backend_server")
 
     In2Firmware.Services.Operations.ReviewHW.init_cameras()
 
