@@ -223,10 +223,7 @@ Request:
       },
       "hotspotOutput": "wlan0",
       "nama": {
-        "enabled": true,
-        "profile": 1,
-        "temperature": "",
-        "version": ""
+        "profile": 1
       },
       "ntp": "pool.ntp.org"
     }

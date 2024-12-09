@@ -261,8 +261,7 @@ defmodule VintageNetWizard.Web.ApiV2 do
   defp validate_hotspot_output(%{hotspotOutput: _}), do: {:error, "Invalid hotspot output"}
   defp validate_hotspot_output(_), do: {:ok, nil}  # Optional field
 
-  defp validate_nama_config(%{nama: %{enabled: enabled, profile: profile}})
-       when is_boolean(enabled) and is_binary(profile), do: {:ok, {enabled, profile}}
+  defp validate_nama_config(%{nama: %{profile: profile}}) when is_binary(profile), do: {:ok, profile}
   defp validate_nama_config(%{nama: _}), do: {:error, "Invalid NAMA configuration"}
   defp validate_nama_config(_), do: {:ok, nil}  # Optional field
 
