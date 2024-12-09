@@ -377,6 +377,9 @@ defmodule VintageNetWizard.BackendServer do
         _from,
         %State{backend: backend, backend_state: backend_state} = state
       ) do
+
+    Logger.info("start_scan from backend_server")
+
     new_backend_state = backend.start_scan(backend_state)
 
     {:reply, :ok, %{state | backend_state: new_backend_state}}
@@ -687,18 +690,6 @@ defmodule VintageNetWizard.BackendServer do
   end
 
   @impl GenServer
-  def handle_cast({:set_stop_cam, value}, state) do
-
-    {:noreply, %{state | stop_cam: value}}
-  end
-
-  @impl GenServer
-  def handle_cast({:set_init_cam, value}, state) do
-
-    {:noreply, %{state | init_cam: value}}
-  end
-
-  @impl GenServer
   def handle_cast({:subscribe, subscriber}, state) do
     {:noreply, %{state | subscriber: subscriber}}
   end
@@ -735,6 +726,16 @@ defmodule VintageNetWizard.BackendServer do
     Logger.info("init_stream_gst from backend_server")
 
     In2Firmware.Services.Operations.ReviewHW.init_cameras()
+
+    {:noreply, state}
+  end
+
+  @impl GenServer
+  def handle_info(:stop_stream, state) do
+
+    StreamServerIntuitivo.ServerManager.stop_server("camera0")
+    StreamServerIntuitivo.ServerManager.stop_server("camera1")
+    StreamServerIntuitivo.ServerManager.stop_server("camera2")
 
     {:noreply, state}
   end
