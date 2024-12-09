@@ -186,10 +186,12 @@ Response:
       "mobileNetwork": {
         "apn": "internet"
       },
-      "hotspotOutput": "wifi",
+      "hotspotOutput": "wlan0",
       "nama": {
         "enabled": true,
-        "profile": "default"
+        "profile": 1,
+        "temperature": "",
+        "version": ""
       },
       "ntp": "pool.ntp.org"
     }
@@ -204,7 +206,8 @@ Request:
         "networks": [
           {
             "ssid": "MyNetwork",
-            "password": "mypassword"
+            "password": "mypassword",
+            "key_mgmt": "wpa_psk"
           }
         ],
         "method": "static",
@@ -218,10 +221,12 @@ Request:
       "mobileNetwork": {
         "apn": "internet"
       },
-      "hotspotOutput": "wifi",
+      "hotspotOutput": "wlan0",
       "nama": {
         "enabled": true,
-        "profile": "default"
+        "profile": 1,
+        "temperature": "",
+        "version": ""
       },
       "ntp": "pool.ntp.org"
     }
@@ -239,6 +244,7 @@ Response:
 - `retrofit`: Retrofit lock mechanism
 - `imbera`: Imbera native lock
 - `southco`: Southco electronic lock
+- `duenorth`: DueNorth lock
 
 ### Network Methods
 - `dhcp`: Dynamic IP configuration
@@ -257,8 +263,8 @@ Response:
 - `closed`: Door is currently closed
 
 ### Hotspot Output
-- `wifi`: WiFi interface
-- `ethernet`: Ethernet interface
+- `wlan0`: WiFi interface
+- `wwan0`: Mobile network interface
 
 ## Error Codes
 
@@ -270,3 +276,16 @@ Response:
 - `MISSING_STATE`: Lock state not provided
 - `INVALID_CONFIG`: Invalid configuration provided
 - `MISSING_CONFIG`: Configuration not provided
+
+### Network Security Types (key_mgmt)
+- `none`: No security (open network)
+- `wpa_psk`: WPA/WPA2 Personal with pre-shared key
+- `wpa_eap`: WPA/WPA2 Enterprise with EAP authentication
+
+For WPA Enterprise networks, additional fields are required:
+    {
+      "ssid": "EnterpriseNetwork",
+      "password": "password",
+      "key_mgmt": "wpa_eap",
+      "user": "username"
+    }
