@@ -497,7 +497,7 @@ defmodule VintageNetWizard.BackendServer do
       hotspotOutput: state.internet_select || "disabled",
       nama: %{
         enabled: state.state_nama.enabled || false,
-        profile: state.state_profile.profile || 1,
+        profile: state.state_profile.profile,
         temperature: state.state_temperature.temperature || "",
         version: state.state_version.version || ""
       },
@@ -630,6 +630,9 @@ defmodule VintageNetWizard.BackendServer do
 
   @impl GenServer
   def handle_cast({:set_state_profile, profile}, state) do
+
+    Logger.info("BACKEND_SERVER SET_PROFILE #{profile}")
+
     new_profile = %{profile: profile}
     {:noreply, %{state | state_profile: new_profile}}
   end
