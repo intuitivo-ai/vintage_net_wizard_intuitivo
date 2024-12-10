@@ -27,7 +27,20 @@ defmodule VintageNetWizard.Web.ApiV2 do
 
   require Logger
 
+  import Plug.Conn, only: [
+    merge_resp_headers: 2,
+    put_resp_content_type: 2,
+    send_resp: 3
+  ]
+
   @valid_lock_types ["retrofit", "imbera", "southco", "duenorth"]
+
+  @cors_headers [
+    {"access-control-allow-origin", "*"},
+    {"access-control-allow-methods", "GET, POST, PUT, DELETE, OPTIONS"},
+    {"access-control-allow-headers", "content-type, authorization"},
+    {"access-control-max-age", "86400"}
+  ]
 
   @type error_type ::
     {:error, :invalid_state | :missing_state | :missing_config | :password_required} |
@@ -401,7 +414,8 @@ defmodule VintageNetWizard.Web.ApiV2 do
   # Helper functions
   defp send_json(conn, status_code, json) when is_binary(json) do
     conn
-    |> put_resp_content_type("content-type", "application/json")
+    |> put_resp_content_type("application/json")
+    |> merge_resp_headers(@cors_headers)
     |> send_resp(status_code, json)
   end
 
@@ -522,5 +536,11 @@ defmodule VintageNetWizard.Web.ApiV2 do
   defp get_body(%Conn{body_params: %{"_json" => body}}), do: body
   defp get_body(%Conn{body_params: body}), do: body
 
+  # Add OPTIONS handler for CORS preflight requests
+  options _ do
+    conn
+    |> merge_resp_headers(@cors_headers)
+    |> send_resp(204, "")
+  end
 
 end
