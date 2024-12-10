@@ -296,7 +296,7 @@ defmodule VintageNetWizard.Web.ApiV2 do
   defp validate_mobile_network(%{"mobileNetwork" => _}), do: {:error, "Invalid mobile network configuration"}
   defp validate_mobile_network(_), do: {:ok, nil}  # Optional field
 
-  defp validate_hotspot_output(%{"hotspotOutput" => output}) when output in ["wlan0", "wwan0"], do: {:ok, output}
+  defp validate_hotspot_output(%{"hotspotOutput" => output}) when output in ["wlan0", "wwan0", "disabled"], do: {:ok, output}
   defp validate_hotspot_output(%{"hotspotOutput" => ""}), do: {:ok, nil}
   defp validate_hotspot_output(%{"hotspotOutput" => _}), do: {:error, "Invalid hotspot output"}
   defp validate_hotspot_output(_), do: {:ok, nil}  # Optional field
