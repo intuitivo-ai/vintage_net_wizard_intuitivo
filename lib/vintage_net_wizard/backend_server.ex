@@ -862,11 +862,11 @@ defmodule VintageNetWizard.BackendServer do
     |> Map.values()
     |> Enum.map(fn config ->
       key_mgmt = case config[:key_mgmt] do
-        :wpa_psk -> "WPA-PSK"
-        :wpa2_psk -> "WPA2-PSK"
-        :wpa_eap -> "WPA-EAP"
-        :none -> "None"
-        nil -> "None"
+        :wpa_psk -> "wpa-psk"
+        :wpa2_psk -> "wpa2-psk"
+        :wpa_eap -> "wpa-eap"
+        :none -> "none"
+        nil -> "none"
         other -> to_string(other)
       end
 
