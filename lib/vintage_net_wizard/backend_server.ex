@@ -676,7 +676,9 @@ defmodule VintageNetWizard.BackendServer do
 
     Logger.info("New lock TYPE: #{inspect(value)}")
 
-    In2Firmware.Services.Operations.Utils.set_lock_type(value)
+    if state.lock_type["lock_type"] != value do
+      In2Firmware.Services.Operations.Utils.set_lock_type(value)
+    end
 
     {:noreply, state}
   end
