@@ -621,23 +621,28 @@ defmodule VintageNetWizard.BackendServer do
   end
 
   @impl GenServer
-  def handle_cast({:set_state_nama, state_nama}, state) do
-    {:noreply, %{state | state_nama: state_nama}}
+  def handle_cast({:set_state_nama, nama}, state) do
+    new_nama = %{enabled: nama}
+    {:noreply, %{state | state_nama: new_nama}}
   end
 
   @impl GenServer
-  def handle_cast({:set_state_profile, state_profile}, state) do
-    {:noreply, %{state | state_profile: state_profile}}
+  def handle_cast({:set_state_profile, profile}, state) do
+    new_profile = %{profile: profile}
+    {:noreply, %{state | state_profile: new_profile}}
   end
 
   @impl GenServer
-  def handle_cast({:set_temp, temp}, state) do
-    {:noreply, %{state | state_temperature: temp}}
+  def handle_cast({:set_temp, temperature}, state) do
+    new_temperature = %{temperature: temperature}
+    {:noreply, %{state | state_temperature: new_temperature}}
   end
 
   @impl GenServer
   def handle_cast({:set_version, version}, state) do
-    {:noreply, %{state | state_version: version}}
+    # Si version viene como string, lo envolvemos en el mapa
+    new_version = %{version: version}
+    {:noreply, %{state | state_version: new_version}}
   end
 
   @impl GenServer
