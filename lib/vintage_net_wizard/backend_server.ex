@@ -566,19 +566,19 @@ defmodule VintageNetWizard.BackendServer do
       11000                # HTTP port where the stream will be available
     )
 
-    # StreamServerIntuitivo.ServerManager.start_server(
-    #   "camera1",           # Unique name for this stream
-    #   "127.0.0.1",    # TCP host (camera IP)
-    #   6001,               # TCP port
-    #   11001                # HTTP port where the stream will be available
-    # )
+    StreamServerIntuitivo.ServerManager.start_server(
+      "camera1",           # Unique name for this stream
+      "127.0.0.1",    # TCP host (camera IP)
+      6001,               # TCP port
+      11001                # HTTP port where the stream will be available
+    )
 
-    # StreamServerIntuitivo.ServerManager.start_server(
-    #   "camera2",           # Unique name for this stream
-    #   "127.0.0.1",    # TCP host (camera IP)
-    #   6002,               # TCP port
-    #   11002                # HTTP port where the stream will be available
-    # )
+    StreamServerIntuitivo.ServerManager.start_server(
+      "camera2",           # Unique name for this stream
+      "127.0.0.1",    # TCP host (camera IP)
+      6002,               # TCP port
+      11002                # HTTP port where the stream will be available
+    )
 
     {:noreply,  state}
   end
@@ -876,9 +876,9 @@ defmodule VintageNetWizard.BackendServer do
           "static" -> "static"
         end
       else
-        "static"
+        "dhcp"
       end
-      {:error, _posix} -> "static"
+      {:error, _posix} -> "dhcp"
     end
   end
 
