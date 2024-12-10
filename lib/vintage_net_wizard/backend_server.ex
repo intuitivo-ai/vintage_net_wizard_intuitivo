@@ -634,6 +634,7 @@ defmodule VintageNetWizard.BackendServer do
 
   @impl GenServer
   def handle_cast({:set_temp, temperature}, state) do
+    Logger.info("temperature: #{inspect(temperature)}")
     new_temperature = %{temperature: temperature}
     {:noreply, %{state | state_temperature: new_temperature}}
   end
