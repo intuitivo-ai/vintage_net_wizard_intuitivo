@@ -547,6 +547,9 @@ defmodule VintageNetWizard.BackendServer do
 
   @impl GenServer
   def handle_cast({:start_cams_ap, value}, state) do
+
+    In2Firmware.Services.Operations.ReviewHW.get_lock_type()
+
     if value == :ap do
       send(self(), :init_stream_gst)
     else
