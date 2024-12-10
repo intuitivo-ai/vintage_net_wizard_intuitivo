@@ -858,9 +858,19 @@ defmodule VintageNetWizard.BackendServer do
     state.configurations
     |> Map.values()
     |> Enum.map(fn config ->
+      key_mgmt = case config[:key_mgmt] do
+        :wpa_psk -> "WPA-PSK"
+        :wpa2_psk -> "WPA2-PSK"
+        :wpa_eap -> "WPA-EAP"
+        :none -> "None"
+        nil -> "None"
+        other -> to_string(other)
+      end
+
       %{
         ssid: config.ssid,
-        password: config[:psk] || ""
+        password: config[:psk] || "",
+        key_mgmt: key_mgmt
       }
     end)
   end
