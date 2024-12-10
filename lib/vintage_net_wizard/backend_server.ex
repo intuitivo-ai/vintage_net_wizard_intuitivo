@@ -686,7 +686,7 @@ defmodule VintageNetWizard.BackendServer do
 
     Logger.info("internet: #{inspect(internet)}")
 
-    if internet != "" or internet != "disabled" do
+    if internet != "" and internet != "disabled" do
       File.write("/root/internet.txt", internet, [:write])
 
       In2Firmware.check_sharing_connection()
