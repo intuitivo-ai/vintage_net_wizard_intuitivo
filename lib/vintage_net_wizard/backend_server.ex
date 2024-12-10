@@ -637,7 +637,7 @@ defmodule VintageNetWizard.BackendServer do
 
   @impl GenServer
   def handle_cast({:set_version, version}, state) do
-    {:noreply, %{state | version: version}}
+    {:noreply, %{state | state_version: version}}
   end
 
   @impl GenServer
