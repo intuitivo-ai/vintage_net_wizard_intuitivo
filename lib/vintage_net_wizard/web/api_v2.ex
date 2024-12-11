@@ -138,11 +138,13 @@ defmodule VintageNetWizard.Web.ApiV2 do
     lock_status = BackendServer.get_lock()
     lock_type = BackendServer.get_lock_type()
 
+    Logger.info("lock_status: #{inspect(lock_status)}")
+
     response = %{
-      status: lock_status["lock"] || "locked",
-      lastChanged: lock_status["timestamp"] || DateTime.utc_now() |> DateTime.to_iso8601(),
+      status: lock_status.lock || "locked",
+      lastChanged: lock_status.timestamp || DateTime.utc_now() |> DateTime.to_iso8601(),
       type: lock_type["lock_type"] || "retrofit",
-      isWorking: lock_status["working"] || true
+      isWorking: lock_status.working || true
     }
 
     send_json(conn, 200, response)

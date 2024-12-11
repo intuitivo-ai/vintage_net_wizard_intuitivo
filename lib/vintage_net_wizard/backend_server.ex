@@ -622,7 +622,13 @@ defmodule VintageNetWizard.BackendServer do
 
   @impl GenServer
   def handle_cast({:set_lock, lock}, state) do
-    {:noreply, %{state | lock: lock}}
+    # Aseguramos que el mapa lock tenga todas las claves necesarias
+    complete_lock = %{
+      lock: lock["lock"] || "locked",
+      working: lock["working"] || true,
+      timestamp: lock["timestamp"] || DateTime.utc_now() |> DateTime.to_iso8601()
+    }
+    {:noreply, %{state | lock: complete_lock}}
   end
 
   @impl GenServer
