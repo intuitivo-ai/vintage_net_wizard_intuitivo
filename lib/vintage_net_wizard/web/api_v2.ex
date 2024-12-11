@@ -138,8 +138,6 @@ defmodule VintageNetWizard.Web.ApiV2 do
     lock_status = BackendServer.get_lock()
     lock_type = BackendServer.get_lock_type()
 
-    Logger.info("lock_status: #{inspect(lock_status)}")
-
     response = %{
       status: lock_status.lock || "locked",
       lastChanged: lock_status.timestamp || DateTime.utc_now() |> DateTime.to_iso8601(),
@@ -237,7 +235,6 @@ defmodule VintageNetWizard.Web.ApiV2 do
   put "/config" do
     case get_body(conn) do
       config when is_map(config) and map_size(config) > 0 ->
-        Logger.info("Config put: #{inspect(config)}")
         with :ok <- validate_config(config),
              :ok <- apply_config(config) do
           response = %{
@@ -334,14 +331,12 @@ defmodule VintageNetWizard.Web.ApiV2 do
   end
 
   defp maybe_apply_lock_type(%{"lockType" => type}) when not is_nil(type) do
-    Logger.info("Saving lock type #{inspect(type)}")
     BackendServer.save_lock(type)
     :ok
   end
   defp maybe_apply_lock_type(_), do: :ok
 
   defp maybe_apply_wifi_config(%{"wifi" => wifi}) when not is_nil(wifi) do
-    Logger.info("Saving WiFi method #{inspect(wifi["method"])}")
     # Apply network method and configurations
     case wifi["method"] do
       "static" ->
@@ -355,8 +350,6 @@ defmodule VintageNetWizard.Web.ApiV2 do
       "dhcp" ->
         BackendServer.save_method(%{method: :dhcp})
     end
-
-    Logger.info("Saving WiFi networks #{inspect(wifi["networks"])}")
 
     # Apply WiFi networks if provided
     if wifi["networks"] do

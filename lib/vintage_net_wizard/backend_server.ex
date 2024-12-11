@@ -329,8 +329,6 @@ defmodule VintageNetWizard.BackendServer do
   @impl GenServer
   def handle_call(:get_lock, _from, %State{state_comm: state_comm} = state) do
 
-    Logger.info("get_lock from backend_server #{inspect(state.lock)} -> #{inspect(state_comm)}")
-
     lock = if state_comm do
       state.lock
     else
@@ -632,8 +630,6 @@ defmodule VintageNetWizard.BackendServer do
       timestamp: lock["timestamp"] || DateTime.utc_now() |> DateTime.to_iso8601()
     }
 
-    Logger.info("complete_lock: #{inspect(complete_lock)}")
-
     {:noreply, %{state | lock: complete_lock}}
   end
 
@@ -662,7 +658,6 @@ defmodule VintageNetWizard.BackendServer do
 
   @impl GenServer
   def handle_cast({:set_temp, temperature}, state) do
-    Logger.info("temperature: #{inspect(temperature)}")
     new_temperature = %{temperature: temperature}
     {:noreply, %{state | state_temperature: new_temperature}}
   end
@@ -676,8 +671,6 @@ defmodule VintageNetWizard.BackendServer do
 
   @impl GenServer
   def handle_cast({:set_state_comm, state_comm}, state) do
-
-    Logger.info("state_comm: #{inspect(state_comm)}")
 
     {:noreply, %{state | state_comm: state_comm}}
   end
@@ -693,8 +686,6 @@ defmodule VintageNetWizard.BackendServer do
   @impl GenServer
   def handle_cast({:save_method, value}, state) do
 
-    Logger.info("config: #{inspect(value)}")
-
     config = Jason.encode!(value)
 
     File.write("/root/config_wifi.txt", config, [:write])
@@ -705,8 +696,6 @@ defmodule VintageNetWizard.BackendServer do
   @impl GenServer
   def handle_cast({:save_lock, value}, state) do
 
-    Logger.info("New lock TYPE: #{inspect(value)}")
-
     if state.lock_type["lock_type"] != value do
       In2Firmware.Services.Operations.Utils.set_lock_type(value)
     end
@@ -716,8 +705,6 @@ defmodule VintageNetWizard.BackendServer do
 
   @impl GenServer
   def handle_cast({:save_apn, apn}, state) do
-
-    Logger.info("apn: #{inspect(apn)}")
 
     if apn != "" do
       File.write("/root/apn.txt", apn, [:write])
@@ -731,7 +718,6 @@ defmodule VintageNetWizard.BackendServer do
   @impl GenServer
   def handle_cast({:save_internet, internet}, state) do
 
-    Logger.info("internet: #{inspect(internet)}")
 
     if internet != "" and internet != "disabled" do
       File.write("/root/internet.txt", internet, [:write])
@@ -746,8 +732,6 @@ defmodule VintageNetWizard.BackendServer do
 
   @impl GenServer
   def handle_cast({:save_ntp, ntps}, state) do
-
-    Logger.info("NTPS: #{inspect(ntps)}")
 
     if ntps != "" do
       File.write("/root/ntps.txt", ntps, [:write])
@@ -768,8 +752,6 @@ defmodule VintageNetWizard.BackendServer do
 
   @impl GenServer
   def handle_cast({:change_profile, profile}, state) do
-
-    Logger.info("profile: #{inspect(profile)}")
 
     In2Firmware.Services.Operations.ReviewHW.set_profile(profile)
 
