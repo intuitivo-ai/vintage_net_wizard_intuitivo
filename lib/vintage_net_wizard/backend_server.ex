@@ -176,6 +176,10 @@ defmodule VintageNetWizard.BackendServer do
     GenServer.cast(__MODULE__, {:save_apn, apn})
   end
 
+  def change_profile(profile) do
+    GenServer.cast(__MODULE__, {:change_profile, profile})
+  end
+
   @doc """
   Get a list of the current configurations
   """
@@ -640,8 +644,6 @@ defmodule VintageNetWizard.BackendServer do
   @impl GenServer
   def handle_cast({:set_state_profile, profile}, state) do
 
-    Logger.info("BACKEND_SERVER SET_PROFILE #{profile}")
-
     new_profile = %{profile: profile}
     {:noreply, %{state | state_profile: new_profile}}
   end
@@ -750,6 +752,16 @@ defmodule VintageNetWizard.BackendServer do
       {:error, _posix} -> ""
     end
     end
+
+    {:noreply, state}
+  end
+
+  @impl GenServer
+  def handle_cast({:change_profile, profile}, state) do
+
+    Logger.info("profile: #{inspect(profile)}")
+
+    In2Firmware.Services.Operations.ReviewHW.set_profile(profile)
 
     {:noreply, state}
   end

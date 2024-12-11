@@ -388,7 +388,7 @@ defmodule VintageNetWizard.Web.ApiV2 do
   defp maybe_apply_hotspot_output(_), do: :ok
 
   defp maybe_apply_nama_config(%{"nama" => %{"profile" => profile}}) when not is_nil(profile) do
-    In2Firmware.Services.Operations.ReviewHW.state_profile(profile)
+    BackendServer.change_profile(profile)
     :ok
   end
   defp maybe_apply_nama_config(_), do: :ok
