@@ -328,6 +328,9 @@ defmodule VintageNetWizard.BackendServer do
 
   @impl GenServer
   def handle_call(:get_lock, _from, %State{state_comm: state_comm} = state) do
+
+    Logger.info("get_lock from backend_server #{inspect(state.lock)} -> #{inspect(state_comm)}")
+
     lock = if state_comm do
       state.lock
     else
@@ -625,9 +628,12 @@ defmodule VintageNetWizard.BackendServer do
     # Aseguramos que el mapa lock tenga todas las claves necesarias
     complete_lock = %{
       lock: lock["lock"] || "locked",
-      working: lock["working"] || true,
+      working: lock["working"],
       timestamp: lock["timestamp"] || DateTime.utc_now() |> DateTime.to_iso8601()
     }
+
+    Logger.info("complete_lock: #{inspect(complete_lock)}")
+
     {:noreply, %{state | lock: complete_lock}}
   end
 
