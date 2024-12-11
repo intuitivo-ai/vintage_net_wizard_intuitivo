@@ -676,17 +676,16 @@ defmodule VintageNetWizard.BackendServer do
 
   @impl GenServer
   def handle_cast({:set_state_comm, state_comm}, state) do
+
+    Logger.info("state_comm: #{inspect(state_comm)}")
+
     {:noreply, %{state | state_comm: state_comm}}
   end
 
   @impl GenServer
-  def handle_cast({:change_lock, value}, %State{state_nama: %{enabled: nama}} = state) do
+  def handle_cast({:change_lock, value}, state) do
 
-    #if nama do
-    #  In2Firmware.Services.Operations.init_trx_op()
-    #else
-      In2Firmware.Services.Operations.ReviewHW.change_lock(value)
-    #end
+    In2Firmware.Services.Operations.ReviewHW.change_lock(value)
 
     {:noreply, state}
   end
