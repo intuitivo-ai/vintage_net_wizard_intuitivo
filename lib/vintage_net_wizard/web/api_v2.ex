@@ -141,7 +141,7 @@ defmodule VintageNetWizard.Web.ApiV2 do
     response = %{
       status: lock_status["lock"] || "locked",
       lastChanged: lock_status["timestamp"] || DateTime.utc_now() |> DateTime.to_iso8601(),
-      type: lock_type["lock_type"],
+      type: lock_type["lock_type"] || "retrofit",
       isWorking: lock_status["working"] || true
     }
 

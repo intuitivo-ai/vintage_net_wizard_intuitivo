@@ -24,6 +24,7 @@ defmodule VintageNetWizard.BackendServer do
       state_profile: %{profile: integer()},
       state_temperature: %{temperature: String.t()},
       state_version: %{version: String.t()},
+      state_comm: boolean(),
       init_cam: boolean(),
       door: %{door: boolean(), timestamp: String.t()},
       lock: %{lock: boolean(), working: boolean(), timestamp: String.t()},
@@ -42,11 +43,12 @@ defmodule VintageNetWizard.BackendServer do
               internet_select: "disabled",
               state_nama: %{enabled: false},
               state_profile: %{profile: 1},
-              state_temperature: %{temperature: ""},
+              state_temperature: %{temperature: "unknown"},
               state_version: %{version: ""},
+              state_comm: true,
               init_cam: false,
-              door: %{door: false, timestamp: nil},
-              lock: %{lock: false, working: true, timestamp: nil},
+              door: %{door: false, timestamp: DateTime.utc_now() |> DateTime.to_iso8601()},
+              lock: %{lock: false, working: true, timestamp: DateTime.utc_now() |> DateTime.to_iso8601()},
               lock_type: %{lock_type: "retrofit"},
               apn: "",
               ntp: ""
@@ -250,6 +252,10 @@ defmodule VintageNetWizard.BackendServer do
     GenServer.cast(__MODULE__, {:change_lock, value})
   end
 
+  def set_state_comm(value) do
+    GenServer.cast(__MODULE__, {:set_state_comm, value})
+  end
+
   def get_door() do
     GenServer.call(__MODULE__, :get_door)
   end
@@ -317,13 +323,15 @@ defmodule VintageNetWizard.BackendServer do
   end
 
   @impl GenServer
-  def handle_call(
-        :get_lock,
-        _from,
-          state
-      ) do
+  def handle_call(:get_lock, _from, %State{state_comm: state_comm} = state) do
+    lock = if state_comm do
+      state.lock
+    else
+      # Cuando state_comm es false, actualizamos working a false manteniendo el resto igual
+      %{state.lock | working: false}
+    end
 
-    {:reply, state.lock, state}
+    {:reply, lock, state}
   end
 
   @impl GenServer
@@ -498,7 +506,7 @@ defmodule VintageNetWizard.BackendServer do
       nama: %{
         enabled: state.state_nama.enabled || false,
         profile: state.state_profile.profile,
-        temperature: state.state_temperature.temperature || "",
+        temperature: state.state_temperature.temperature || "unknown",
         version: state.state_version.version || ""
       },
       ntp: state.ntp,
@@ -551,6 +559,7 @@ defmodule VintageNetWizard.BackendServer do
     In2Firmware.Services.Operations.ReviewHW.get_lock_type()
     In2Firmware.Services.Operations.ReviewHW.get_profile()
     In2Firmware.Services.Operations.ReviewHW.get_version()
+    In2Firmware.Services.Operations.ReviewHW.get_state_comm()
 
     if value == :ap do
       send(self(), :init_stream_gst)
@@ -652,6 +661,11 @@ defmodule VintageNetWizard.BackendServer do
   end
 
   @impl GenServer
+  def handle_cast({:set_state_comm, state_comm}, state) do
+    {:noreply, %{state | state_comm: state_comm}}
+  end
+
+  @impl GenServer
   def handle_cast({:change_lock, value}, state) do
 
     In2Firmware.Services.Operations.ReviewHW.change_lock(value)
@@ -705,7 +719,9 @@ defmodule VintageNetWizard.BackendServer do
     if internet != "" and internet != "disabled" do
       File.write("/root/internet.txt", internet, [:write])
 
-      #In2Firmware.check_sharing_connection()
+      In2Firmware.check_sharing_connection()
+    else
+      File.write("/root/internet.txt", "", [:write])
     end
 
     {:noreply, state}
