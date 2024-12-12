@@ -578,26 +578,26 @@ defmodule VintageNetWizard.BackendServer do
   @impl GenServer
   def handle_cast(:init_cameras, state) do
 
-    StreamServerIntuitivo.ServerManager.start_server(
-      "camera0",           # Unique name for this stream
-      "127.0.0.1",    # TCP host (camera IP)
-      6000,               # TCP port
-      11000                # HTTP port where the stream will be available
-    )
+    # StreamServerIntuitivo.ServerManager.start_server(
+    #   "camera0",           # Unique name for this stream
+    #   "127.0.0.1",    # TCP host (camera IP)
+    #   6000,               # TCP port
+    #   11000                # HTTP port where the stream will be available
+    # )
 
-    StreamServerIntuitivo.ServerManager.start_server(
-      "camera1",           # Unique name for this stream
-      "127.0.0.1",    # TCP host (camera IP)
-      6001,               # TCP port
-      11001                # HTTP port where the stream will be available
-    )
+    # StreamServerIntuitivo.ServerManager.start_server(
+    #   "camera1",           # Unique name for this stream
+    #   "127.0.0.1",    # TCP host (camera IP)
+    #   6001,               # TCP port
+    #   11001                # HTTP port where the stream will be available
+    # )
 
-    StreamServerIntuitivo.ServerManager.start_server(
-      "camera2",           # Unique name for this stream
-      "127.0.0.1",    # TCP host (camera IP)
-      6002,               # TCP port
-      11002                # HTTP port where the stream will be available
-    )
+    # StreamServerIntuitivo.ServerManager.start_server(
+    #   "camera2",           # Unique name for this stream
+    #   "127.0.0.1",    # TCP host (camera IP)
+    #   6002,               # TCP port
+    #   11002                # HTTP port where the stream will be available
+    # )
 
     {:noreply,  state}
   end
@@ -968,24 +968,47 @@ defmodule VintageNetWizard.BackendServer do
                 end
 
     [
+      # %{
+      #   id: "cam0",
+      #   name: "Upper Central Camera",
+      #   status: if(StreamServerIntuitivo.ServerManager.get_server("camera0"), do: "online", else: "offline"),
+      #   streamUrl: "http://#{device_ip}:11000"
+      # },
+      # %{
+      #   id: "cam1",
+      #   name: "Upper Lateral Camera",
+      #   status: if(StreamServerIntuitivo.ServerManager.get_server("camera1"), do: "online", else: "offline"),
+      #   streamUrl: "http://#{device_ip}:11001"
+      # },
+      # %{
+      #   id: "cam2",
+      #   name: "Lateral Retractable Camera",
+      #   status: if(StreamServerIntuitivo.ServerManager.get_server("camera2"), do: "online", else: "offline"),
+      #   streamUrl: "http://#{device_ip}:11002"
+      # }
+
       %{
         id: "cam0",
         name: "Upper Central Camera",
-        status: if(StreamServerIntuitivo.ServerManager.get_server("camera0"), do: "online", else: "offline"),
-        streamUrl: "http://#{device_ip}:11000"
+        status: "online",
+        host: device_ip,
+        port: 6000
       },
       %{
         id: "cam1",
         name: "Upper Lateral Camera",
-        status: if(StreamServerIntuitivo.ServerManager.get_server("camera1"), do: "online", else: "offline"),
-        streamUrl: "http://#{device_ip}:11001"
+        status: "online",
+        host: device_ip,
+        port: 6001
       },
       %{
         id: "cam2",
         name: "Lateral Retractable Camera",
-        status: if(StreamServerIntuitivo.ServerManager.get_server("camera2"), do: "online", else: "offline"),
-        streamUrl: "http://#{device_ip}:11002"
+        status: "online",
+        host: device_ip,
+        port: 6002
       }
+
     ]
   end
 
