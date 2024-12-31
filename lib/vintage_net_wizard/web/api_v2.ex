@@ -56,6 +56,9 @@ defmodule VintageNetWizard.Web.ApiV2 do
   plug(:dispatch)
 
   get "/health" do
+
+    Logger.info("API_V2_GET_HEALTH_REQUEST")
+
     device_info = BackendServer.device_info()
 
     # Extract values from the device_info list
@@ -77,6 +80,9 @@ defmodule VintageNetWizard.Web.ApiV2 do
   end
 
   get "/networks/scan" do
+
+    Logger.info("API_V2_GET_NETWORKS_SCAN_REQUEST")
+
     networks =
       BackendServer.access_points()
       |> VintageNetWiFi.summarize_access_points()
@@ -95,6 +101,9 @@ defmodule VintageNetWizard.Web.ApiV2 do
   end
 
   get "/configuration/status" do
+
+    Logger.info("API_V2_GET_CONFIGURATION_STATUS_REQUEST")
+
     status = BackendServer.configuration_status()
 
     response = %{
@@ -207,11 +216,17 @@ defmodule VintageNetWizard.Web.ApiV2 do
   end
 
   get "/config" do
+
+    Logger.info("API_V2_GET_CONFIG_REQUEST")
+
     config = BackendServer.get_board_config()  # Using existing function
     send_json(conn, 200, config)
   end
 
   put "/complete" do
+
+    Logger.info("API_V2_PUT_COMPLETE_REQUEST")
+
     :ok = BackendServer.complete()
     BackendServer.stop_cameras()
 
@@ -233,6 +248,9 @@ defmodule VintageNetWizard.Web.ApiV2 do
 
 
   put "/config" do
+
+    Logger.info("API_V2_PUT_CONFIG_REQUEST #{inspect(get_body(conn))}")
+
     case get_body(conn) do
       config when is_map(config) and map_size(config) > 0 ->
         with :ok <- validate_config(config),
