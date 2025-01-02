@@ -197,14 +197,7 @@ defmodule VintageNetWizard.Backend.Default do
           vintage_net_wifi: %{
             networks: wifi_configurations
           },
-          ipv4: %{
-            method: :static,
-            address: "192.168.100.138",
-            netmask: "255.255.255.0",
-            prefix_length: 24,
-            gateway: "192.168.100.1",
-            name_servers: ["8.8.8.8", "8.8.4.4"]
-          }
+          ipv4: map_with_atom
         })
         end
 
