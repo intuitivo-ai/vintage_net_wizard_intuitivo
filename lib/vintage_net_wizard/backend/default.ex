@@ -185,14 +185,20 @@ defmodule VintageNetWizard.Backend.Default do
             name_servers: decoded_map["name_servers"]
         }
 
-        Logger.info("API_V2_CONFIGURATION_WIFI_STATIC_REQUEST is #{inspect(map_with_atom)}")
+        Logger.info("API_V2_CONFIGURATION_WIFI_STATIC_REQUEST is #{inspect(map_with_atom)} #{inspect(wifi_configurations)}")
 
         VintageNet.configure(state.ifname, %{
           type: VintageNetWiFi,
           vintage_net_wifi: %{
             networks: wifi_configurations
           },
-          ipv4: map_with_atom
+          ipv4: %{
+            method: :static,
+            address: decoded_map["address"],
+            netmask: decoded_map["netmask"],
+            gateway: decoded_map["gateway"],
+            name_servers: decoded_map["name_servers"]
+          }
         })
         end
 
