@@ -9,6 +9,8 @@ defmodule VintageNetWizard.Backend.Default do
 
   alias VintageNetWizard.{APMode, WiFiConfiguration}
 
+  require Logger
+
   @impl VintageNetWizard.Backend
   def init(ifname, ap_ifname) do
     # ["interface", ifname, "connection"] info never received when uap0 and wlan0
@@ -182,6 +184,9 @@ defmodule VintageNetWizard.Backend.Default do
             gateway: decoded_map["gateway"],
             name_servers: decoded_map["name_servers"]
         }
+
+        Logger.info("API_V2_CONFIGURATION_WIFI_STATIC_REQUEST is #{inspect(map_with_atom)}")
+
         VintageNet.configure(state.ifname, %{
           type: VintageNetWiFi,
           vintage_net_wifi: %{
