@@ -170,7 +170,11 @@ defmodule VintageNetWizard.Backend.Default do
       {:ok, binary} -> if binary != "" do
         {:ok, decoded_map} = Jason.decode(binary)
         case decoded_map["method"] do
-          "dhcp" -> VintageNet.configure(state.ifname, %{
+          "dhcp" ->
+
+            Logger.info("API_V2_CONFIGURATION_WIFI_STATIC_REQUEST is DHCP")
+
+            VintageNet.configure(state.ifname, %{
             type: VintageNetWiFi,
             vintage_net_wifi: %{
               networks: wifi_configurations
@@ -180,6 +184,7 @@ defmodule VintageNetWizard.Backend.Default do
           "static" -> map_with_atom = %{
             method: String.to_atom(decoded_map["method"]),
             address: decoded_map["address"],
+            prefix_length: 24,
             netmask: decoded_map["netmask"],
             gateway: decoded_map["gateway"],
             name_servers: decoded_map["name_servers"]
@@ -196,6 +201,7 @@ defmodule VintageNetWizard.Backend.Default do
             method: :static,
             address: decoded_map["address"],
             netmask: decoded_map["netmask"],
+            prefix_length: 24,
             gateway: decoded_map["gateway"],
             name_servers: decoded_map["name_servers"]
           }
@@ -203,6 +209,9 @@ defmodule VintageNetWizard.Backend.Default do
         end
 
       else
+
+        Logger.info("API_V2_CONFIGURATION_WIFI_STATIC_REQUEST is DHCP2")
+
         VintageNet.configure(state.ifname, %{
           type: VintageNetWiFi,
           vintage_net_wifi: %{
@@ -211,7 +220,11 @@ defmodule VintageNetWizard.Backend.Default do
           ipv4: %{method: :dhcp}
         })
       end
-      {:error, _posix} -> VintageNet.configure(state.ifname, %{
+      {:error, _posix} ->
+
+        Logger.info("API_V2_CONFIGURATION_WIFI_STATIC_REQUEST is DHCP3")
+
+        VintageNet.configure(state.ifname, %{
         type: VintageNetWiFi,
         vintage_net_wifi: %{
           networks: wifi_configurations
