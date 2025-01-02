@@ -725,10 +725,22 @@ defmodule VintageNetWizard.BackendServer do
 
     if internet != "" and internet != "disabled" do
       File.write("/root/internet.txt", internet, [:write])
-
-      In2Firmware.check_sharing_connection()
+      In2Firmware.check_sharing_connection("")
     else
-      File.write("/root/internet.txt", "", [:write])
+      if File.exists?("/root/internet.txt") do
+        result = File.read("/root/internet.txt")
+        case result do
+          {:ok, interface} ->
+            File.write("/root/internet.txt", "", [:write])
+            In2Firmware.check_sharing_connection(interface)
+          {:error, _posix} ->
+            File.write("/root/internet.txt", "", [:write])
+            In2Firmware.check_sharing_connection("")
+        end
+      else
+        File.write("/root/internet.txt", "", [:write])
+        In2Firmware.check_sharing_connection("")
+      end
     end
 
     {:noreply, state}
