@@ -199,11 +199,11 @@ defmodule VintageNetWizard.Backend.Default do
           },
           ipv4: %{
             method: :static,
-            address: decoded_map["address"],
-            netmask: decoded_map["netmask"],
+            address: "192.168.100.138",
+            netmask: "255.255.255.0",
             prefix_length: 24,
-            gateway: decoded_map["gateway"],
-            name_servers: decoded_map["name_servers"]
+            gateway: "192.168.100.1",
+            name_servers: ["8.8.8.8", "8.8.4.4"]
           }
         })
         end
