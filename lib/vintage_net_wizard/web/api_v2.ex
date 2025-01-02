@@ -326,10 +326,13 @@ defmodule VintageNetWizard.Web.ApiV2 do
     if ntp == "" do
       {:ok, nil}
     else
-      if String.match?(ntp, ~r/^((\d{1,3}\.){3}\d{1,3}),((\d{1,3}\.){3}\d{1,3})(,((\d{1,3}\.){3}\d{1,3}))*$/) do
+      # Regex para validar IPs o hostnames, uno o más separados por comas
+      ip_regex = ~r/^(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}|\w+(?:\.\w+)+)(?:,(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}|\w+(?:\.\w+)+))*$/
+
+      if String.match?(ntp, ip_regex) do
         {:ok, ntp}
       else
-        {:error, "Invalid NTP format - must be at least two comma-separated IP addresses"}
+        {:error, "Invalid NTP format - must be one or more comma-separated IP addresses or hostnames"}
       end
     end
   end
