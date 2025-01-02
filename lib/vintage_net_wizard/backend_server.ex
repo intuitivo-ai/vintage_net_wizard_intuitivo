@@ -567,9 +567,11 @@ defmodule VintageNetWizard.BackendServer do
     In2Firmware.Services.Operations.ReviewHW.get_state_comm()
 
     if value == :ap do
-      send(self(), :init_stream_gst)
+      send(self(), :re_init_stream_gst)
+      Process.send_after(self(), :init_stream_gst, 5_000)
     else
-      Process.send_after(self(), :init_stream_gst, 10_000)
+      Process.send_after(self(), :re_init_stream_gst, 10_000)
+      Process.send_after(self(), :init_stream_gst, 15_000)
     end
 
     {:noreply,  state}
@@ -612,6 +614,8 @@ defmodule VintageNetWizard.BackendServer do
     StreamServerIntuitivo.ServerManager.stop_server("camera2")
 
     In2Firmware.Services.Operations.ReviewHW.stop_cameras()
+
+    In2Firmware.Services.Operations.default_init_cameras()
 
     {:noreply,  state}
   end

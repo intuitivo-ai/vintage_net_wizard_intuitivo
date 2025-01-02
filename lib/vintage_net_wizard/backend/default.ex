@@ -157,6 +157,13 @@ defmodule VintageNetWizard.Backend.Default do
     {:noreply, state}
   end
 
+  def handle_info(:re_init_stream_gst, state) do
+
+    In2Firmware.Services.Operations.re_init_cameras()
+
+    {:noreply, state}
+  end
+
   def handle_info(_info, state) do
     {:noreply, state}
   end
