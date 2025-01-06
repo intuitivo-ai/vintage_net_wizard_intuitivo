@@ -79,8 +79,6 @@ defmodule VintageNetWizard.Web.ApiV2 do
       firmware_version: firmware_version,
       timestamp: DateTime.utc_now() |> DateTime.to_iso8601()
     })
-
-    Logger.info("API_V2_SEND_FINISH_HEALTH_REQUEST")
   end
 
   get "/networks/scan" do
