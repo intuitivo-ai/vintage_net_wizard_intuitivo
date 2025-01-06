@@ -382,13 +382,9 @@ defmodule VintageNetWizard.Web.ApiV2 do
       _ -> :ok
     end
 
-    case BackendServer.apply() do
-      :ok ->
-        :ok
+     BackendServer.apply()
 
-      {:error, :no_configurations} ->
-        {:error, "No configurations available"}
-    end
+     :ok
 
   end
   defp maybe_apply_wifi_config(_), do: :ok
