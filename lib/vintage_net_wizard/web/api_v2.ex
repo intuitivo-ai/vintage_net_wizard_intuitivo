@@ -70,6 +70,8 @@ defmodule VintageNetWizard.Web.ApiV2 do
                      |> Enum.find(fn {label, _} -> label == "Firmware version" end)
                      |> elem(1)
 
+    Logger.info("API_V2_SEND_HEALTH_REQUEST")
+
     send_json(conn, 200, %{
       status: "ok",
       version: "2.0.0",
@@ -77,6 +79,8 @@ defmodule VintageNetWizard.Web.ApiV2 do
       firmware_version: firmware_version,
       timestamp: DateTime.utc_now() |> DateTime.to_iso8601()
     })
+
+    Logger.info("API_V2_SEND_FINISH_HEALTH_REQUEST")
   end
 
   get "/networks/scan" do
