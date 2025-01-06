@@ -39,7 +39,7 @@ defmodule VintageNetWizard.APMode do
           "dhcp" ->
             %{method: :dhcp}
           "static" -> %{
-            method: String.to_atom(decoded_map["method"]),
+            method: String.to_existing_atom(decoded_map["method"]),
             address: decoded_map["address"],
             prefix_length: 24,
             netmask: decoded_map["netmask"],

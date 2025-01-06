@@ -189,7 +189,7 @@ defmodule VintageNetWizard.Backend.Default do
             ipv4: %{method: :dhcp}
           })
           "static" -> map_with_atom = %{
-            method: String.to_atom(decoded_map["method"]),
+            method: String.to_existing_atom(decoded_map["method"]),
             address: decoded_map["address"],
             prefix_length: 24,
             netmask: decoded_map["netmask"],

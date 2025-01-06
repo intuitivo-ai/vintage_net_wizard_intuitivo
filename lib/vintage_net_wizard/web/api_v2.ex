@@ -373,11 +373,13 @@ defmodule VintageNetWizard.Web.ApiV2 do
     end
 
     # Apply WiFi networks if provided
-    if wifi["networks"] do
-      Enum.each(wifi["networks"], fn network ->
-        {:ok, cfg} = WiFiConfiguration.json_to_network_config(network)
-        BackendServer.save(cfg)
-      end)
+    case wifi["networks"] do
+      networks when is_list(networks) and networks != [] ->
+        Enum.each(networks, fn network ->
+          {:ok, cfg} = WiFiConfiguration.json_to_network_config(network)
+          BackendServer.save(cfg)
+        end)
+      _ -> :ok
     end
 
     case BackendServer.apply() do
