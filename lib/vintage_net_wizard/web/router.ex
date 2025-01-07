@@ -6,7 +6,7 @@ defmodule VintageNetWizard.Web.Router do
 
   use Plug.Router
   use Plug.Debugger, otp_app: :vintage_net_wizard
-  import Logger
+  require Logger
 
   #plug :auth
 

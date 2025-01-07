@@ -568,10 +568,10 @@ defmodule VintageNetWizard.BackendServer do
 
     if value == :ap do
       send(self(), :re_init_stream_gst)
-      Process.send_after(self(), :init_stream_gst, 5_000)
+      #Process.send_after(self(), :init_stream_gst, 5_000)
     else
       Process.send_after(self(), :re_init_stream_gst, 10_000)
-      Process.send_after(self(), :init_stream_gst, 15_000)
+      #Process.send_after(self(), :init_stream_gst, 15_000)
     end
 
     {:noreply,  state}
