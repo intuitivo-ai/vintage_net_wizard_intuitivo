@@ -16,7 +16,7 @@ defmodule VintageNetWizard.Web.Router do
     WiFiConfiguration
   }
 
-  alias VintageNetWizard.Web.{ApiV2}
+  alias VintageNetWizard.Web.{ApiV1, ApiV2}
 
   plug(Plug.Static, from: {:vintage_net_wizard, "priv/static"}, at: "/")
   plug(Plug.Parsers, parsers: [Plug.Parsers.URLENCODED, :json], json_decoder: Jason)
@@ -259,6 +259,7 @@ defmodule VintageNetWizard.Web.Router do
     render_page(conn, "complete.html", opts)
   end
 
+  forward("/api/v1", to: ApiV1)
   forward("/api/v2", to: ApiV2)
 
   match _ do

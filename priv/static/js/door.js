@@ -148,7 +148,7 @@
     fetch("/api/v1/door")
       .then((resp) => resp.json())
       .then((state) => {
-        doorState.textContent = state.door;
+        doorState.textContent = state.status;
       });
   }
 
@@ -156,9 +156,9 @@
     fetch("/api/v1/lock_type")
       .then((resp) => resp.json())
       .then((state) => {
-        LockType.textContent = state.lock_type;
+        LockType.textContent = state.type;
 
-        if (state.lock_type === "imbera") {
+        if (state.type === "imbera") {
           imbera.style.display = "block"; // Mostrar el div
           divNama.style.display = "block"; // Mostrar el div
           divClear.style.display = "block"; // Mostrar el div
@@ -178,7 +178,7 @@
     fetch("/api/v1/status_lock")
       .then((resp) => resp.json())
       .then((state) => {
-        LockState.textContent = state.lock;
+        LockState.textContent = state.status;
       });
   }
 
