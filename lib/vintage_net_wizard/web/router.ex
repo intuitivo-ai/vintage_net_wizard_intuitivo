@@ -57,7 +57,18 @@ defmodule VintageNetWizard.Web.Router do
   end
 
   get "/" do
-      render_page(conn, "index.html", opts)
+    case BackendServer.configurations() do
+      [] ->
+        redirect(conn, "/networks")
+
+      configs ->
+        render_page(conn, "index.html", opts,
+          configs: configs,
+          configuration_status: configuration_status_details(),
+          format_security: &WiFiConfiguration.security_name/1,
+          get_key_mgmt: &WiFiConfiguration.get_key_mgmt/1
+        )
+    end
   end
 
   post "/ssid/:ssid" do
