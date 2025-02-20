@@ -32,38 +32,23 @@ defmodule VintageNetWizard.Web.ApiV1 do
     lock_status = BackendServer.get_lock()
 
     response = %{
-      status: lock_status.lock || "locked"
+      status: lock_status.lock || "locked",
+      isWorking: lock_status.working
     }
 
     send_json(conn, 200, Jason.encode!(response))
   end
 
-  get "/state_imbera" do
-    send_json(conn, 200, Jason.encode!(BackendServer.get_state_imbera()))
+  get "/get_ntp_apn" do
+    config = BackendServer.get_board_config()
+
+    send_json(conn, 200, Jason.encode!(Jason.encode!(config)))
   end
 
-  get "/get_ntp" do
-    send_json(conn, 200, Jason.encode!(BackendServer.get_ntp()))
-  end
+  get "/get_imbera_all" do
+    config = BackendServer.get_board_config()
 
-  get "/get_apn" do
-    send_json(conn, 200, Jason.encode!(BackendServer.get_apn()))
-  end
-
-  get "/state_nama" do
-    send_json(conn, 200, Jason.encode!(BackendServer.get_state_nama()))
-  end
-
-  get "/state_profile" do
-    send_json(conn, 200, Jason.encode!(BackendServer.get_state_profile()))
-  end
-
-  get "/get_temp" do
-    send_json(conn, 200, Jason.encode!(BackendServer.get_temp()))
-  end
-
-  get "/get_version" do
-    send_json(conn, 200, Jason.encode!(BackendServer.get_version()))
+    send_json(conn, 200, Jason.encode!(Jason.encode!(config)))
   end
 
   get "/lock_type" do

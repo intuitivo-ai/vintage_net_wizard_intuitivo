@@ -38,9 +38,7 @@
 
   getLockType();
 
-  getNtp();
-
-  getApn();
+  getNtpApn();
 
   //setTimeout(() => initStream(), 100);
 
@@ -179,61 +177,38 @@
       .then((resp) => resp.json())
       .then((state) => {
         LockState.textContent = state.status;
+        stateImbera.textContent = state.isWorking;
       });
   }
 
-  function getNtp() {
-    fetch("/api/v1/get_ntp")
+  function getNtpApn() {
+    fetch("/api/v1/get_ntp_apn")
       .then((resp) => resp.json())
       .then((state) => {
         NTP.value = state.ntp;
-      });
-  }
-
-  function getApn() {
-    fetch("/api/v1/get_apn")
-      .then((resp) => resp.json())
-      .then((state) => {
-        APN.value = state.apn;
+        APN.value = state.mobileNetwork.apn;
       });
   }
 
   function getImbera() {
-    fetch("/api/v1/state_imbera")
+    fetch("/api/v1/get_imbera_all")
       .then((resp) => resp.json())
       .then((state) => {
-        stateImbera.textContent = state.state_imbera;
-      });
-    fetch("/api/v1/state_nama")
-      .then((resp) => resp.json())
-      .then((state) => {
-        namaImbera.textContent = state.state_nama;
-      });
-    fetch("/api/v1/state_profile")
-      .then((resp) => resp.json())
-      .then((state) => {
-        profileImbera.textContent = state.state_profile;
-      });
-    fetch("/api/v1/get_temp")
-      .then((resp) => resp.json())
-      .then((state) => {
-        tempImbera.textContent = state.temp + " °C";
-      });
-    fetch("/api/v1/get_version")
-      .then((resp) => resp.json())
-      .then((state) => {
-        versionImbera.textContent = state.version;
+        namaImbera.textContent = state.nama.enabled;
+        profileImbera.textContent = state.nama.profile;
+        tempImbera.textContent = state.nama.temperature + " °C";
+        versionImbera.textContent = state.nama.version;
       });
   }
 
   function getImberaInit() {
-    fetch("/api/v1/state_profile")
+    fetch("/api/v1/get_imbera_all")
       .then((resp) => resp.json())
       .then((state) => {
-        profileImbera.textContent = state.state_profile;
-        if (state.state_profile == 1) {
+        profileImbera.textContent = state.nama.profile;
+        if (state.nama.profile == 1) {
           LockNama.checked = false;
-        } else if (state.state_profile == 2) {
+        } else if (state.nama.profile == 2) {
           LockNama.checked = true;
         }
       });
