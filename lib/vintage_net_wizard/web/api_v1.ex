@@ -142,7 +142,7 @@ defmodule VintageNetWizard.Web.ApiV1 do
 
   get "/stop_cams" do
 
-    BackendServer.stop_cameras()
+    #BackendServer.stop_cameras()
 
     send_json(conn, 200, Jason.encode!(%{"state" => "ok"}))
   end
