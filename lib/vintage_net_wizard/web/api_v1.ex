@@ -79,7 +79,7 @@ defmodule VintageNetWizard.Web.ApiV1 do
 
   put "/lock" do
 
-    BackendServer.change_lock("unlocked")
+    BackendServer.change_lock(false)
 
     send_json(conn, 204, "")
   end
