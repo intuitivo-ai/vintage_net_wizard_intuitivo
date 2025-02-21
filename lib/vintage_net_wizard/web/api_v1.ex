@@ -79,7 +79,7 @@ defmodule VintageNetWizard.Web.ApiV1 do
 
   put "/lock" do
 
-    BackendServer.change_lock(true)
+    BackendServer.change_lock("unlocked")
 
     send_json(conn, 204, "")
   end
@@ -142,7 +142,7 @@ defmodule VintageNetWizard.Web.ApiV1 do
 
   get "/stop_cams" do
 
-    BackendServer.set_stop_cam(true)
+    #BackendServer.set_stop_cam(true)
 
     send_json(conn, 200, Jason.encode!(%{"state" => "ok"}))
   end
