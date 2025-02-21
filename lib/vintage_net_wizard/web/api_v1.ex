@@ -135,14 +135,14 @@ defmodule VintageNetWizard.Web.ApiV1 do
 
   get "/init_cams" do
 
-    BackendServer.set_init_cam(true)
+    BackendServer.init_cameras()
 
     send_json(conn, 200, Jason.encode!(%{"state" => "ok"}))
   end
 
   get "/stop_cams" do
 
-    #BackendServer.set_stop_cam(true)
+    BackendServer.stop_cameras()
 
     send_json(conn, 200, Jason.encode!(%{"state" => "ok"}))
   end

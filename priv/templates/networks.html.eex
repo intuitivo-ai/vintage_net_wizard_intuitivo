@@ -84,24 +84,24 @@
                 <img
                   id="cam0"
                   class="h-full p-6 rounded-lg border-2 border-gray-500 flex flex-col relative overflow-hidden test-col-content"
-                  src="/images/noimg.jpg"
-                  alt="cam0"
+                  src="http://127.0.0.1:11000"
+                  alt="Camera 0 Stream"
                 />
               </div>
               <div class="col-span-1 test-col test-cam">
                 <img
                   id="cam1"
                   class="h-full p-6 rounded-lg border-2 border-gray-500 flex flex-col relative overflow-hidden test-col-content"
-                  src="/images/noimg.jpg"
-                  alt="cam1"
+                  src="http://127.0.0.1:11001"
+                  alt="Camera 1 Stream"
                 />
               </div>
               <div class="col-span-1 test-col test-cam">
                 <img
                   id="cam2"
                   class="h-full p-6 rounded-lg border-2 border-gray-500 flex flex-col relative overflow-hidden test-col-content"
-                  src="/images/noimg.jpg"
-                  alt="cam2"
+                  src="http://127.0.0.1:11002"
+                  alt="Camera 2 Stream"
                 />
               </div>
             </div>
