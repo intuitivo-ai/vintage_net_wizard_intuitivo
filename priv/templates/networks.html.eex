@@ -84,7 +84,7 @@
                 <img
                   id="cam0"
                   class="h-full p-6 rounded-lg border-2 border-gray-500 flex flex-col relative overflow-hidden test-col-content"
-                  src="http://127.0.0.1:11000"
+                  src="http://192.168.0.1:11000"
                   alt="Camera 0 Stream"
                 />
               </div>
@@ -92,7 +92,7 @@
                 <img
                   id="cam1"
                   class="h-full p-6 rounded-lg border-2 border-gray-500 flex flex-col relative overflow-hidden test-col-content"
-                  src="http://127.0.0.1:11001"
+                  src="http://192.168.0.1:11001"
                   alt="Camera 1 Stream"
                 />
               </div>
@@ -100,7 +100,7 @@
                 <img
                   id="cam2"
                   class="h-full p-6 rounded-lg border-2 border-gray-500 flex flex-col relative overflow-hidden test-col-content"
-                  src="http://127.0.0.1:11002"
+                  src="http://192.168.0.1:11002"
                   alt="Camera 2 Stream"
                 />
               </div>
