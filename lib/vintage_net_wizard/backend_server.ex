@@ -565,6 +565,7 @@ defmodule VintageNetWizard.BackendServer do
     In2Firmware.Services.Operations.ReviewHW.get_profile()
     In2Firmware.Services.Operations.ReviewHW.get_version()
     In2Firmware.Services.Operations.ReviewHW.get_state_comm()
+    In2Firmware.Services.Operations.ReviewHW.get_init_state()
 
     if value == :ap do
       send(self(), :re_init_stream_gst)
