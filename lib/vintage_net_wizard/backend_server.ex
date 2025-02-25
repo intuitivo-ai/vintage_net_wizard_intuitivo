@@ -582,7 +582,7 @@ defmodule VintageNetWizard.BackendServer do
   def handle_cast(:init_cameras, state) do
 
     # Verifica el estado de la cámara y actúa en consecuencia
-    if StreamServerIntuitivo.ServerManager.get_server("camera0") == "offline" do
+    if StreamServerIntuitivo.ServerManager.get_server("camera0") in [nil, "offline"] do
       StreamServerIntuitivo.ServerManager.start_server(
         "camera0",           # Unique name for this stream
         "127.0.0.1",    # TCP host (camera IP)
@@ -591,7 +591,7 @@ defmodule VintageNetWizard.BackendServer do
       )
     end
 
-    if StreamServerIntuitivo.ServerManager.get_server("camera1") == "offline" do
+    if StreamServerIntuitivo.ServerManager.get_server("camera1") in [nil, "offline"] do
       StreamServerIntuitivo.ServerManager.start_server(
         "camera1",           # Unique name for this stream
         "127.0.0.1",    # TCP host (camera IP)
@@ -600,7 +600,7 @@ defmodule VintageNetWizard.BackendServer do
       )
     end
 
-    if StreamServerIntuitivo.ServerManager.get_server("camera2") == "offline" do
+    if StreamServerIntuitivo.ServerManager.get_server("camera2") in [nil, "offline"] do
       StreamServerIntuitivo.ServerManager.start_server(
         "camera2",           # Unique name for this stream
         "127.0.0.1",    # TCP host (camera IP)
