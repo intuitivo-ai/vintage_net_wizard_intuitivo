@@ -160,10 +160,8 @@
           imbera.style.display = "block"; // Mostrar el div
           divNama.style.display = "block"; // Mostrar el div
           divClear.style.display = "block"; // Mostrar el div
-          getImberaInit();
           getImbera();
           setInterval(getImbera, 1000);
-          setInterval(getImberaInit, 12000);
         } else {
           imbera.style.display = "none"; // Ocultar el div
           divNama.style.display = "none"; // Ocultar el div
@@ -198,19 +196,13 @@
         profileImbera.textContent = state.nama.profile;
         tempImbera.textContent = state.nama.temperature + " °C";
         versionImbera.textContent = state.nama.version;
-      });
-  }
 
-  function getImberaInit() {
-    fetch("/api/v1/get_imbera_all")
-      .then((resp) => resp.json())
-      .then((state) => {
-        profileImbera.textContent = state.nama.profile;
         if (state.nama.profile == 1) {
           LockNama.checked = false;
         } else if (state.nama.profile == 2) {
           LockNama.checked = true;
         }
+
       });
   }
 
