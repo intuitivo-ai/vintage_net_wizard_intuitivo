@@ -123,7 +123,7 @@ defmodule VintageNetWizard.Web.ApiV2 do
   end
 
   post "/cameras/initialize" do
-    BackendServer.init_cameras()  # Using existing function
+    #BackendServer.init_cameras()  # Using existing function
 
     response = %{
       status: "success",
