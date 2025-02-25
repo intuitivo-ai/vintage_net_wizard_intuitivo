@@ -183,8 +183,11 @@
     fetch("/api/v1/get_ntp_apn")
       .then((resp) => resp.json())
       .then((state) => {
+
+        const mobileNetwork = state.mobileNetwork;
+
         NTP.value = state.ntp;
-        APN.value = state.mobileNetwork.apn;
+        APN.value = mobileNetwork.apn;
       });
   }
 
@@ -192,14 +195,18 @@
     fetch("/api/v1/get_imbera_all")
       .then((resp) => resp.json())
       .then((state) => {
-        namaImbera.textContent = state.nama.enabled;
-        profileImbera.textContent = state.nama.profile;
-        tempImbera.textContent = state.nama.temperature + " °C";
-        versionImbera.textContent = state.nama.version;
 
-        if (state.nama.profile == 1) {
+
+        const nama = state.nama;
+
+        namaImbera.textContent = nama.enabled;
+        profileImbera.textContent = nama.profile;
+        tempImbera.textContent = nama.temperature + " °C";
+        versionImbera.textContent = nama.version;
+
+        if (nama.profile == 1) {
           LockNama.checked = false;
-        } else if (state.nama.profile == 2) {
+        } else if (nama.profile == 2) {
           LockNama.checked = true;
         }
 

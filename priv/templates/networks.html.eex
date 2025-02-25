@@ -240,7 +240,6 @@
                 <p id="nama-imbera"></p>
                 <p class="text-xs font-normal text-gray-600 -mt-1 kit-firmware-v px-3"><strong>Temp</strong>:</p>
                 <p id="temp-imbera"></p>
-                ∏
                 <p class="text-xs font-normal text-gray-600 -mt-1 kit-firmware-v px-3"><strong>Version</strong>:</p>
                 <p id="version-imbera"></p>
               </div>

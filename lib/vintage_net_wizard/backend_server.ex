@@ -568,11 +568,11 @@ defmodule VintageNetWizard.BackendServer do
     In2Firmware.Services.Operations.ReviewHW.get_init_state()
 
     if value == :ap do
-      send(self(), :re_init_stream_gst)
-      Process.send_after(self(), :init_stream_gst, 5_000)
+      #send(self(), :re_init_stream_gst)
+      send(self(), :init_stream_gst)
     else
-      Process.send_after(self(), :re_init_stream_gst, 10_000)
-      Process.send_after(self(), :init_stream_gst, 15_000)
+      #Process.send_after(self(), :re_init_stream_gst, 10_000)
+      Process.send_after(self(), :init_stream_gst, 5_000)
     end
 
     {:noreply,  state}
