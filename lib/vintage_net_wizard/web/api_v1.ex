@@ -42,13 +42,13 @@ defmodule VintageNetWizard.Web.ApiV1 do
   get "/get_ntp_apn" do
     config = BackendServer.get_board_config()
 
-    send_json(conn, 200, Jason.encode!(Jason.encode!(config)))
+    send_json(conn, 200, Jason.encode!(config))
   end
 
   get "/get_imbera_all" do
     config = BackendServer.get_board_config()
 
-    send_json(conn, 200, Jason.encode!(Jason.encode!(config)))
+    send_json(conn, 200, Jason.encode!(config))
   end
 
   get "/lock_type" do
