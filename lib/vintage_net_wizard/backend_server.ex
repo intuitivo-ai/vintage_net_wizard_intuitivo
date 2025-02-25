@@ -581,28 +581,35 @@ defmodule VintageNetWizard.BackendServer do
   @impl GenServer
   def handle_cast(:init_cameras, state) do
 
-     StreamServerIntuitivo.ServerManager.start_server(
-       "camera0",           # Unique name for this stream
-       "127.0.0.1",    # TCP host (camera IP)
-       6000,               # TCP port
-       11000                # HTTP port where the stream will be available
-     )
+    # Verifica el estado de la cámara y actúa en consecuencia
+    if StreamServerIntuitivo.ServerManager.get_server("camera0") == "offline" do
+      StreamServerIntuitivo.ServerManager.start_server(
+        "camera0",           # Unique name for this stream
+        "127.0.0.1",    # TCP host (camera IP)
+        6000,               # TCP port
+        11000                # HTTP port where the stream will be available
+      )
+    end
 
-     StreamServerIntuitivo.ServerManager.start_server(
-       "camera1",           # Unique name for this stream
-       "127.0.0.1",    # TCP host (camera IP)
-       6001,               # TCP port
-       11001                # HTTP port where the stream will be available
-     )
+    if StreamServerIntuitivo.ServerManager.get_server("camera1") == "offline" do
+      StreamServerIntuitivo.ServerManager.start_server(
+        "camera1",           # Unique name for this stream
+        "127.0.0.1",    # TCP host (camera IP)
+        6001,               # TCP port
+        11001                # HTTP port where the stream will be available
+      )
+    end
 
-     StreamServerIntuitivo.ServerManager.start_server(
-       "camera2",           # Unique name for this stream
-       "127.0.0.1",    # TCP host (camera IP)
-       6002,               # TCP port
-       11002                # HTTP port where the stream will be available
-     )
+    if StreamServerIntuitivo.ServerManager.get_server("camera2") == "offline" do
+      StreamServerIntuitivo.ServerManager.start_server(
+        "camera2",           # Unique name for this stream
+        "127.0.0.1",    # TCP host (camera IP)
+        6002,               # TCP port
+        11002                # HTTP port where the stream will be available
+      )
+    end
 
-    {:noreply,  state}
+    {:noreply, state}
   end
 
   @impl GenServer
