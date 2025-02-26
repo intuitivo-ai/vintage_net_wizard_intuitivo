@@ -152,14 +152,14 @@ defmodule VintageNetWizard.Backend.Default do
 
   def handle_info(:init_stream_gst, state) do
 
-    In2Firmware.Services.Operations.ReviewHW.init_cameras()
+    #In2Firmware.Services.Operations.ReviewHW.init_cameras()
 
     {:noreply, state}
   end
 
   def handle_info(:re_init_stream_gst, state) do
 
-    In2Firmware.Services.Operations.re_init_cameras()
+    #In2Firmware.Services.Operations.re_init_cameras()
 
     {:noreply, state}
   end

@@ -559,7 +559,7 @@ defmodule VintageNetWizard.BackendServer do
   end
 
   @impl GenServer
-  def handle_cast({:start_cams_ap, value}, state) do
+  def handle_cast({:start_cams_ap, _value}, state) do
 
     In2Firmware.Services.Operations.ReviewHW.get_lock_type()
     In2Firmware.Services.Operations.ReviewHW.get_profile()
@@ -567,13 +567,13 @@ defmodule VintageNetWizard.BackendServer do
     In2Firmware.Services.Operations.ReviewHW.get_state_comm()
     In2Firmware.Services.Operations.ReviewHW.get_init_state()
 
-    if value == :ap do
+    #if value == :ap do
       #send(self(), :re_init_stream_gst)
-      send(self(), :init_stream_gst)
-    else
+    #  send(self(), :init_stream_gst)
+    #else
      #Process.send_after(self(), :re_init_stream_gst, 10_000)
-     Process.send_after(self(), :init_stream_gst, 5_000)
-    end
+    # Process.send_after(self(), :init_stream_gst, 5_000)
+    #end
 
     {:noreply,  state}
   end
@@ -582,32 +582,34 @@ defmodule VintageNetWizard.BackendServer do
   def handle_cast(:init_cameras, state) do
 
     # Verifica el estado de la cámara y actúa en consecuencia
-    if StreamServerIntuitivo.ServerManager.get_server("camera0") in [nil, "offline"] do
-      StreamServerIntuitivo.ServerManager.start_server(
-        "camera0",           # Unique name for this stream
-        "127.0.0.1",    # TCP host (camera IP)
-        6000,               # TCP port
-        11000                # HTTP port where the stream will be available
-      )
-    end
+    #if StreamServerIntuitivo.ServerManager.get_server("camera0") in [nil, "offline"] do
+    #  StreamServerIntuitivo.ServerManager.start_server(
+    #    "camera0",           # Unique name for this stream
+    #    "127.0.0.1",    # TCP host (camera IP)
+    #    6000,               # TCP port
+    #    11000                # HTTP port where the stream will be available
+    #  )
+    #end
 
-    if StreamServerIntuitivo.ServerManager.get_server("camera1") in [nil, "offline"] do
-      StreamServerIntuitivo.ServerManager.start_server(
-        "camera1",           # Unique name for this stream
-        "127.0.0.1",    # TCP host (camera IP)
-        6001,               # TCP port
-        11001                # HTTP port where the stream will be available
-      )
-    end
+    #if StreamServerIntuitivo.ServerManager.get_server("camera1") in [nil, "offline"] do
+    #  StreamServerIntuitivo.ServerManager.start_server(
+    #    "camera1",           # Unique name for this stream
+    #    "127.0.0.1",    # TCP host (camera IP)
+    #    6001,               # TCP port
+    #    11001                # HTTP port where the stream will be available
+    #  )
+    #end
 
-    if StreamServerIntuitivo.ServerManager.get_server("camera2") in [nil, "offline"] do
-      StreamServerIntuitivo.ServerManager.start_server(
-        "camera2",           # Unique name for this stream
-        "127.0.0.1",    # TCP host (camera IP)
-        6002,               # TCP port
-        11002                # HTTP port where the stream will be available
-      )
-    end
+    #if StreamServerIntuitivo.ServerManager.get_server("camera2") in [nil, "offline"] do
+    #  StreamServerIntuitivo.ServerManager.start_server(
+    #    "camera2",           # Unique name for this stream
+    #    "127.0.0.1",    # TCP host (camera IP)
+    #    6002,               # TCP port
+    #    11002                # HTTP port where the stream will be available
+    #  )
+    #end
+
+    In2Firmware.Services.Operations.re_init_http()
 
     {:noreply, state}
   end
@@ -617,13 +619,15 @@ defmodule VintageNetWizard.BackendServer do
 
     Logger.info("stop_cameras from backend_server")
 
-    StreamServerIntuitivo.ServerManager.stop_server("camera0")
-    StreamServerIntuitivo.ServerManager.stop_server("camera1")
-    StreamServerIntuitivo.ServerManager.stop_server("camera2")
+    #StreamServerIntuitivo.ServerManager.stop_server("camera0")
+    #StreamServerIntuitivo.ServerManager.stop_server("camera1")
+    #StreamServerIntuitivo.ServerManager.stop_server("camera2")
 
-    In2Firmware.Services.Operations.ReviewHW.stop_cameras()
+    #In2Firmware.Services.Operations.ReviewHW.stop_cameras()
 
     #In2Firmware.Services.Operations.default_init_cameras()
+
+    In2Firmware.Services.Operations.re_stop_http()
 
     {:noreply,  state}
   end
@@ -992,46 +996,46 @@ defmodule VintageNetWizard.BackendServer do
                 end
 
     [
-      # %{
-      #   id: "cam0",
-      #   name: "Upper Central Camera",
-      #   status: if(StreamServerIntuitivo.ServerManager.get_server("camera0"), do: "online", else: "offline"),
-      #   streamUrl: "http://#{device_ip}:11000"
-      # },
-      # %{
-      #   id: "cam1",
-      #   name: "Upper Lateral Camera",
-      #   status: if(StreamServerIntuitivo.ServerManager.get_server("camera1"), do: "online", else: "offline"),
-      #   streamUrl: "http://#{device_ip}:11001"
-      # },
-      # %{
-      #   id: "cam2",
-      #   name: "Lateral Retractable Camera",
-      #   status: if(StreamServerIntuitivo.ServerManager.get_server("camera2"), do: "online", else: "offline"),
-      #   streamUrl: "http://#{device_ip}:11002"
-      # }
+       %{
+         id: "cam0",
+         name: "Upper Central Camera",
+         status: "online",
+         streamUrl: "http://#{device_ip}:11000"
+       },
+       %{
+         id: "cam1",
+         name: "Upper Lateral Camera",
+         status: "online",
+         streamUrl: "http://#{device_ip}:11001"
+       },
+       %{
+         id: "cam2",
+         name: "Lateral Retractable Camera",
+         status: "online",
+         streamUrl: "http://#{device_ip}:11002"
+       }
 
-      %{
-        id: "cam0",
-        name: "Upper Central Camera",
-        status: "online",
-        host: device_ip,
-        port: 6000
-      },
-      %{
-        id: "cam1",
-        name: "Upper Lateral Camera",
-        status: "online",
-        host: device_ip,
-        port: 6001
-      },
-      %{
-        id: "cam2",
-        name: "Lateral Retractable Camera",
-        status: "online",
-        host: device_ip,
-        port: 6002
-      }
+      #%{
+      #  id: "cam0",
+      #  name: "Upper Central Camera",
+      #  status: "online",
+      #  host: device_ip,
+      #  port: 11000
+      #},
+      #%{
+      #  id: "cam1",
+      #  name: "Upper Lateral Camera",
+      #  status: "online",
+      #  host: device_ip,
+      #  port: 11001
+      #},
+      #%{
+      #  id: "cam2",
+      #  name: "Lateral Retractable Camera",
+      #  status: "online",
+      #  host: device_ip,
+      #  port: 11002
+      #}
 
     ]
   end
