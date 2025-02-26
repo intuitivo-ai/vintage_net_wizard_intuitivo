@@ -92,6 +92,7 @@ defmodule VintageNetWizard.APMode do
           %{
             mode: :ap,
             ssid: ssid,
+            frequency: 5180,
             key_mgmt: :none
           }
         ]

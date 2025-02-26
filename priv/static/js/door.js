@@ -40,7 +40,9 @@
 
   getNtpApn();
 
-  setTimeout(() => initStream(), 100);
+  initStream();
+
+  //setTimeout(() => initStream(), 100);
 
   //setTimeout(() => changeVideo("0", 1), 5000);
 
