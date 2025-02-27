@@ -628,6 +628,7 @@ defmodule VintageNetWizard.BackendServer do
     #In2Firmware.Services.Operations.default_init_cameras()
 
     In2Firmware.Services.Operations.re_stop_http()
+    In2Firmware.Services.Operations.re_stop_tcp()
 
     {:noreply,  state}
   end
@@ -996,46 +997,46 @@ defmodule VintageNetWizard.BackendServer do
                 end
 
     [
-       %{
-         id: "cam0",
-         name: "Upper Central Camera",
-         status: "online",
-         streamUrl: "http://#{device_ip}:11000"
-       },
-       %{
-         id: "cam1",
-         name: "Upper Lateral Camera",
-         status: "online",
-         streamUrl: "http://#{device_ip}:11001"
-       },
-       %{
-         id: "cam2",
-         name: "Lateral Retractable Camera",
-         status: "online",
-         streamUrl: "http://#{device_ip}:11002"
-       }
+       #%{
+       #  id: "cam0",
+       #  name: "Upper Central Camera",
+       #  status: "online",
+       #  streamUrl: "http://#{device_ip}:11000"
+       #},
+       #%{
+       #  id: "cam1",
+       #  name: "Upper Lateral Camera",
+       #  status: "online",
+       #  streamUrl: "http://#{device_ip}:11001"
+       #},
+       #%{
+       #  id: "cam2",
+       #  name: "Lateral Retractable Camera",
+       #  status: "online",
+       #  streamUrl: "http://#{device_ip}:11002"
+       #}
 
-      #%{
-      #  id: "cam0",
-      #  name: "Upper Central Camera",
-      #  status: "online",
-      #  host: device_ip,
-      #  port: 11000
-      #},
-      #%{
-      #  id: "cam1",
-      #  name: "Upper Lateral Camera",
-      #  status: "online",
-      #  host: device_ip,
-      #  port: 11001
-      #},
-      #%{
-      #  id: "cam2",
-      #  name: "Lateral Retractable Camera",
-      #  status: "online",
-      #  host: device_ip,
-      #  port: 11002
-      #}
+      %{
+        id: "cam0",
+        name: "Upper Central Camera",
+        status: "online",
+        host: device_ip,
+        port: 6000
+      },
+      %{
+        id: "cam1",
+        name: "Upper Lateral Camera",
+        status: "online",
+        host: device_ip,
+        port: 6001
+      },
+      %{
+        id: "cam2",
+        name: "Lateral Retractable Camera",
+        status: "online",
+        host: device_ip,
+        port: 6002
+      }
 
     ]
   end
