@@ -112,7 +112,7 @@ defmodule VintageNetWizard.Web.ApiV1 do
   end
 
   get "/complete" do
-    #:ok = BackendServer.complete()
+    :ok = BackendServer.complete()
 
     _ =
       Task.Supervisor.start_child(VintageNetWizard.TaskSupervisor, fn ->
