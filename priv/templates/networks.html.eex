@@ -125,7 +125,7 @@
                       <option value="wwan0_to_eth0">wwan0_to_eth0</option>
                       <option value="wlan0_to_eth0">wlan0_to_eth0</option>
                       <option value="wwan0_to_wlan0">wwan0_to_wlan0</option>
-                      <option value="wlan0_to_wwan0">eth0_to_wlan0</option>
+                      <option value="eth0_to_wlan0">eth0_to_wlan0</option>
                     </select>
                   </div>
                   <div id="wifi_credentials" style="display: none;" class="my-3">

@@ -167,6 +167,32 @@ defmodule VintageNetWizard.Web.ApiV1 do
     send_json(conn, 200, %{status: "ok", message: "Rebooting device..."} |> Jason.encode!())
   end
 
+  get "/wifi_credentials" do
+    # Leer el archivo de credenciales WiFi
+    result = case File.read("/root/.secret_wifi.txt") do
+      {:ok, content} ->
+        # Intenta decodificar el contenido como JSON
+        case Jason.decode(content) do
+          {:ok, json_data} ->
+            # Si es JSON válido, usa directamente los campos ssid y password
+            %{
+              ssid: json_data["ssid"] || "",
+              password: json_data["password"] || ""
+            }
+
+          {:error, _} ->
+            %{ssid: "", password: ""}
+        end
+
+      {:error, _reason} ->
+        # Si hay un error al leer el archivo, devolver valores vacíos
+        %{ssid: "", password: ""}
+    end
+
+    # Enviar respuesta JSON con las credenciales
+    send_json(conn, 200, Jason.encode!(result))
+  end
+
   post "/apply" do
     case BackendServer.apply() do
       :ok ->

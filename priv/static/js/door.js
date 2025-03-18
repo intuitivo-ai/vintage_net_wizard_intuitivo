@@ -267,8 +267,8 @@
       // Mostrar u ocultar div según selección
       internetSelect.addEventListener("change", function() {
         const selectedValue = internetSelect.value;
-        if (selectedValue === "wwan0_to_wlan0" || selectedValue === "wlan0_to_wwan0") {
-          fetch("/wifi_credentials")
+        if (selectedValue === "wwan0_to_wlan0" || selectedValue === "eth0_to_wlan0") {
+          fetch("/api/v1/wifi_credentials")
             .then(response => response.json())
             .then(data => {
               wifiSsidSpan.textContent = data.ssid || "Not available";
@@ -285,8 +285,8 @@
       });
       
       // Comprobar el valor inicial al cargar la página
-      if (internetSelect.value === "wwan0_to_wlan0" || internetSelect.value === "wlan0_to_wwan0") {
-        fetch("/wifi_credentials")
+      if (internetSelect.value === "wwan0_to_wlan0" || internetSelect.value === "eth0_to_wlan0") {
+        fetch("/api/v1/wifi_credentials")
           .then(response => response.json())
           .then(data => {
             wifiSsidSpan.textContent = data.ssid || "Not available";
