@@ -315,9 +315,8 @@ defmodule VintageNetWizard.BackendServer do
 
     ap_ifname = Keyword.fetch!(opts, :ap_ifname)
 
-    send(self(), :get_ntp)
-    send(self(), :get_apn)
-    send(self(), :get_internet_select)
+    result = get_init_values()
+
     {:ok,
      %State{
        configurations: configurations,
@@ -326,7 +325,10 @@ defmodule VintageNetWizard.BackendServer do
        backend_state: backend.init(ifname, ap_ifname),
        device_info: device_info,
        ifname: ifname,
-       ap_ifname: ap_ifname
+       ap_ifname: ap_ifname,
+       internet_select: result.internet_select,
+       apn: result.apn,
+       ntps: result.ntps
      }}
   end
 
@@ -500,8 +502,6 @@ defmodule VintageNetWizard.BackendServer do
   def handle_call(:get_board_config, _from, %State{backend: backend, backend_state: backend_state} = state) do
 
     status = backend.configuration_status(backend_state)
-
-    Logger.info("internet_select: #{state.internet_select}")
 
     config = %{
       lockType: state.lock_type["lock_type"],
@@ -839,45 +839,35 @@ defmodule VintageNetWizard.BackendServer do
     end
   end
 
-  @impl GenServer
-  def handle_info(:get_ntp, state) do
+  defp get_init_values() do
 
-    result = File.read("/root/ntps.txt")
 
-    list = case result do
-      {:ok, binary} -> binary
-      {:error, _posix} -> ""
-    end
+      result = File.read("/root/ntps.txt")
 
-    {:noreply, %{state | ntp: list}}
-  end
+      ntps = case result do
+        {:ok, binary} -> binary
+        {:error, _posix} -> ""
+      end
 
-  @impl GenServer
-  def handle_info(:get_apn, state) do
+      result = File.read("/root/apn.txt")
 
-    result = File.read("/root/apn.txt")
+      apn = case result do
+        {:ok, binary} -> binary
+        {:error, _posix} -> ""
+      end
 
-    apn = case result do
-      {:ok, binary} -> binary
-      {:error, _posix} -> ""
-    end
+      result = File.read("/root/internet.txt")
 
-    {:noreply, %{state | apn: apn}}
-  end
+      internet_select = case result do
+        {:ok, binary} -> binary
+        {:error, _posix} -> ""
+      end
 
-  @impl GenServer
-  def handle_info(:get_internet_select, state) do
-
-    result = File.read("/root/internet.txt")
-
-    internet_select = case result do
-      {:ok, binary} -> binary
-      {:error, _posix} -> ""
-    end
-
-    Logger.info("internet_select: #{internet_select}")
-
-    {:noreply, %{state | internet_select: internet_select}}
+    %{
+      internet_select: internet_select,
+      apn: apn,
+      ntps: ntps
+    }
   end
 
   defp build_config_list(configs) do
