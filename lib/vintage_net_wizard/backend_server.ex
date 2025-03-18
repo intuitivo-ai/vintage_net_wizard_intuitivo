@@ -328,7 +328,7 @@ defmodule VintageNetWizard.BackendServer do
        ap_ifname: ap_ifname,
        internet_select: result.internet_select,
        apn: result.apn,
-       ntps: result.ntps
+       ntp: result.ntps
      }}
   end
 
