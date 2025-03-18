@@ -253,4 +253,72 @@
       body: JSON.stringify({ value: target.checked }),
     });
   });
+
+  // WiFi Credentials and Reboot Functionality
+  document.addEventListener("DOMContentLoaded", function() {
+    // Selector de internet para mostrar/ocultar credenciales WiFi
+    const internetSelect = document.getElementById("internet_select");
+    const wifiCredentialsDiv = document.getElementById("wifi_credentials");
+    const wifiSsidSpan = document.getElementById("wifi_ssid");
+    const wifiPasswordSpan = document.getElementById("wifi_password");
+    const rebootButton = document.getElementById("reboot_button");
+    
+    if (internetSelect) {
+      // Mostrar u ocultar div según selección
+      internetSelect.addEventListener("change", function() {
+        const selectedValue = internetSelect.value;
+        if (selectedValue === "wwan0_to_wlan0" || selectedValue === "wlan0_to_wwan0") {
+          fetch("/wifi_credentials")
+            .then(response => response.json())
+            .then(data => {
+              wifiSsidSpan.textContent = data.ssid || "Not available";
+              wifiPasswordSpan.textContent = data.password || "Not available";
+              wifiCredentialsDiv.style.display = "block";
+            })
+            .catch(error => {
+              console.error("Error fetching WiFi credentials:", error);
+              wifiCredentialsDiv.style.display = "none";
+            });
+        } else {
+          wifiCredentialsDiv.style.display = "none";
+        }
+      });
+      
+      // Comprobar el valor inicial al cargar la página
+      if (internetSelect.value === "wwan0_to_wlan0" || internetSelect.value === "wlan0_to_wwan0") {
+        fetch("/wifi_credentials")
+          .then(response => response.json())
+          .then(data => {
+            wifiSsidSpan.textContent = data.ssid || "Not available";
+            wifiPasswordSpan.textContent = data.password || "Not available";
+            wifiCredentialsDiv.style.display = "block";
+          })
+          .catch(error => {
+            console.error("Error fetching WiFi credentials:", error);
+          });
+      }
+    }
+    
+    // Configurar el botón de reinicio
+    if (rebootButton) {
+      rebootButton.addEventListener("click", function() {
+        if (confirm("Are you sure you want to reboot the device?")) {
+          fetch("/api/v1/reboot", {
+            method: "POST"
+          })
+          .then(response => {
+            if (response.ok) {
+              alert("Device is rebooting...");
+            } else {
+              alert("Failed to reboot the device.");
+            }
+          })
+          .catch(error => {
+            console.error("Error rebooting device:", error);
+            alert("Error: Could not reboot the device.");
+          });
+        }
+      });
+    }
+  });
 })();

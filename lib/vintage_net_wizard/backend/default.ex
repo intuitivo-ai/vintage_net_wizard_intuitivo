@@ -150,6 +150,13 @@ defmodule VintageNetWizard.Backend.Default do
     end
   end
 
+  def handle_info(:reboot_device, state) do
+
+    Nerves.Runtime.reboot()
+
+    {:noreply, state}
+  end
+
   def handle_info(:init_stream_gst, state) do
 
     #In2Firmware.Services.Operations.ReviewHW.init_cameras()

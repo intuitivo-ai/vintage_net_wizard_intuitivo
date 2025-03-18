@@ -176,6 +176,10 @@ defmodule VintageNetWizard.BackendServer do
     GenServer.cast(__MODULE__, {:save_apn, apn})
   end
 
+  def reboot do
+    GenServer.cast(__MODULE__, :reboot)
+  end
+
   def change_profile(profile) do
     GenServer.cast(__MODULE__, {:change_profile, profile})
   end
@@ -733,9 +737,15 @@ defmodule VintageNetWizard.BackendServer do
   end
 
   @impl GenServer
+  def handle_cast(:reboot, state) do
+
+    Process.send_after(self(), :reboot_device, 5_000)
+
+    {:noreply, state}
+  end
+
+  @impl GenServer
   def handle_cast({:save_internet, internet}, state) do
-
-
     if internet != "" and internet != "disabled" do
       File.write("/root/internet.txt", internet, [:write])
       In2Firmware.check_sharing_connection("")
@@ -745,7 +755,16 @@ defmodule VintageNetWizard.BackendServer do
         case result do
           {:ok, interface} ->
             File.write("/root/internet.txt", "", [:write])
-            In2Firmware.check_sharing_connection(interface)
+            if interface == "wwan0_to_wlan0" or interface == "eth0_to_wlan0" do
+              # Generate random SSID and password for AP mode
+              random_ssid = "INTUITIVO_" <> random_string(6)
+              random_password = random_password(16)
+
+              # Save credentials to secret file
+              save_ap_credentials(random_ssid, random_password)
+            else
+              In2Firmware.check_sharing_connection(interface)
+            end
           {:error, _posix} ->
             File.write("/root/internet.txt", "", [:write])
             In2Firmware.check_sharing_connection("")
@@ -1044,5 +1063,40 @@ defmodule VintageNetWizard.BackendServer do
   def configuration_status_details(:not_configured), do: "No network configuration present"
   def configuration_status_details(:good), do: "Network configured and connected"
   def configuration_status_details(:bad), do: "Network configuration present but not connected"
+
+  # Generates a random string of specified length using uppercase letters and numbers
+  defp random_string(length) do
+    chars = ~w(A B C D E F G H I J K L M N O P Q R S T U V W X Y Z 0 1 2 3 4 5 6 7 8 9)
+    Enum.take_random(chars, length) |> Enum.join("")
+  end
+
+  # Generates a secure random password with specified minimum length
+  # including uppercase, lowercase, numbers and special characters
+  defp random_password(min_length) do
+    # Ensure we have at least one of each character type
+    upper = random_string(4)
+    lower = String.downcase(random_string(4))
+    numbers = Enum.map(1..4, fn _ -> Enum.random(0..9) end) |> Enum.join("")
+    special = Enum.take_random(~w(! @ # $ % ^ & * + - _ = ~), 4) |> Enum.join("")
+
+    # Combine and shuffle all characters
+    (upper <> lower <> numbers <> special)
+    |> String.graphemes()
+    |> Enum.shuffle()
+    |> Enum.join("")
+  end
+
+  # Saves AP credentials to the secret file
+  defp save_ap_credentials(ssid, password) do
+    credentials = %{
+      ssid: ssid,
+      password: password,
+      key_mgmt: "wpa2-psk",
+      generated_at: DateTime.utc_now() |> DateTime.to_iso8601()
+    }
+
+    json = Jason.encode!(credentials, pretty: true)
+    File.write("/root/.secret_wifi.txt", json, [:write])
+  end
 
 end
