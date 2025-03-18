@@ -136,6 +136,14 @@ defmodule VintageNetWizard.Web.ApiV2 do
     send_json(conn, 200, response)
   end
 
+  post "/reboot" do
+    # Ejecutar la función de reinicio
+    BackendServer.reboot()
+
+    # Enviar respuesta OK
+    send_json(conn, 200, %{status: "success", message: "Rebooting device..."})
+  end
+
   get "/door" do
     door_status = BackendServer.get_door()
 

@@ -503,6 +503,26 @@ defmodule VintageNetWizard.BackendServer do
 
     status = backend.configuration_status(backend_state)
 
+    result = case File.read("/root/.secret_wifi.txt") do
+      {:ok, content} ->
+        # Intenta decodificar el contenido como JSON
+        case Jason.decode(content) do
+          {:ok, json_data} ->
+            # Si es JSON válido, usa directamente los campos ssid y password
+            %{
+              ssid: json_data["ssid"] || "",
+              password: json_data["password"] || ""
+            }
+
+          {:error, _} ->
+            %{ssid: "", password: ""}
+        end
+
+      {:error, _reason} ->
+        # Si hay un error al leer el archivo, devolver valores vacíos
+        %{ssid: "", password: ""}
+    end
+
     config = %{
       lockType: state.lock_type["lock_type"],
       wifi: %{
@@ -514,6 +534,10 @@ defmodule VintageNetWizard.BackendServer do
         apn: state.apn
       },
       hotspotOutput: state.internet_select || "disabled",
+      wifihotspotOutput: %{
+        ssid: result.ssid,
+        password: result.password
+      },
       nama: %{
         enabled: state.state_nama.enabled || false,
         profile: state.state_profile.profile,
