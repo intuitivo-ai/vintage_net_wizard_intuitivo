@@ -501,6 +501,8 @@ defmodule VintageNetWizard.BackendServer do
 
     status = backend.configuration_status(backend_state)
 
+    Logger.info("internet_select: #{state.internet_select}")
+
     config = %{
       lockType: state.lock_type["lock_type"],
       wifi: %{
@@ -872,6 +874,8 @@ defmodule VintageNetWizard.BackendServer do
       {:ok, binary} -> binary
       {:error, _posix} -> ""
     end
+
+    Logger.info("internet_select: #{internet_select}")
 
     {:noreply, %{state | internet_select: internet_select}}
   end
