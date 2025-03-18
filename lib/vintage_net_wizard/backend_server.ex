@@ -748,23 +748,23 @@ defmodule VintageNetWizard.BackendServer do
   def handle_cast({:save_internet, internet}, state) do
     if internet != "" and internet != "disabled" do
       File.write("/root/internet.txt", internet, [:write])
-      In2Firmware.check_sharing_connection("")
+      if internet == "wwan0_to_wlan0" or internet == "eth0_to_wlan0" do
+        # Generate random SSID and password for AP mode
+        random_ssid = "INTUITIVO_" <> random_string(6)
+        random_password = random_password(16)
+
+        # Save credentials to secret file
+        save_ap_credentials(random_ssid, random_password)
+      else
+        In2Firmware.check_sharing_connection("")
+      end
     else
       if File.exists?("/root/internet.txt") do
         result = File.read("/root/internet.txt")
         case result do
           {:ok, interface} ->
             File.write("/root/internet.txt", "", [:write])
-            if interface == "wwan0_to_wlan0" or interface == "eth0_to_wlan0" do
-              # Generate random SSID and password for AP mode
-              random_ssid = "INTUITIVO_" <> random_string(6)
-              random_password = random_password(16)
-
-              # Save credentials to secret file
-              save_ap_credentials(random_ssid, random_password)
-            else
-              In2Firmware.check_sharing_connection(interface)
-            end
+            In2Firmware.check_sharing_connection(interface)
           {:error, _posix} ->
             File.write("/root/internet.txt", "", [:write])
             In2Firmware.check_sharing_connection("")
