@@ -51,6 +51,18 @@ defmodule VintageNetWizard.Web.ApiV1 do
     send_json(conn, 200, Jason.encode!(config))
   end
 
+  get "/get_internet_sharing" do
+    # Usar la configuración de board_config que ya tiene el valor de internet_select
+    config = BackendServer.get_board_config()
+
+    # Preparar la respuesta usando el valor de hotspotOutput que contiene el valor de internet_select
+    response = %{
+      mode: config.hotspotOutput || "disabled"
+    }
+
+    send_json(conn, 200, Jason.encode!(response))
+  end
+
   get "/lock_type" do
 
     lock_type = BackendServer.get_lock_type()

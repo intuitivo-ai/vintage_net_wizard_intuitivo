@@ -39,6 +39,7 @@
   getLockType();
 
   getNtpApn();
+  getInternetSharingConfig();
 
   initStream();
 
@@ -185,11 +186,40 @@
     fetch("/api/v1/get_ntp_apn")
       .then((resp) => resp.json())
       .then((state) => {
-
         const mobileNetwork = state.mobileNetwork;
-
         NTP.value = state.ntp;
         APN.value = mobileNetwork.apn;
+      });
+  }
+
+  // Obtener la configuración actual de compartir internet
+  function getInternetSharingConfig() {
+    fetch("/api/v1/get_internet_sharing")
+      .then((resp) => resp.json())
+      .then((state) => {
+        const internetSelect = document.getElementById("internet_select");
+        if (internetSelect) {
+          const sharingMode = state.mode;
+          // Si el modo es vacío o "disabled", seleccionar la opción "disabled"
+          if (!sharingMode || sharingMode === "" || sharingMode === "disabled") {
+            internetSelect.value = "disabled";
+          } else {
+            // De lo contrario, seleccionar la opción correspondiente
+            internetSelect.value = sharingMode;
+          }
+          
+          // Disparar el evento change para activar el código que muestra/oculta las credenciales WiFi
+          const event = new Event("change");
+          internetSelect.dispatchEvent(event);
+        }
+      })
+      .catch((error) => {
+        console.error("Error getting internet sharing config:", error);
+        // En caso de error, seleccionar "disabled" por defecto
+        const internetSelect = document.getElementById("internet_select");
+        if (internetSelect) {
+          internetSelect.value = "disabled";
+        }
       });
   }
 
