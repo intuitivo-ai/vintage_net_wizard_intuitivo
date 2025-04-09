@@ -8,13 +8,16 @@ defmodule VintageNetWizard.Web.Router do
   use Plug.Debugger, otp_app: :vintage_net_wizard
   require Logger
 
-  plug VintageNetWizard.Plugs.ApiKeyAuth
-
   alias VintageNetWizard.{
     BackendServer,
     Web.Endpoint,
     WiFiConfiguration
   }
+
+  # Create a pipeline for authenticated routes
+  defp authenticate(conn, _opts) do
+    conn |> VintageNetWizard.Plugs.ApiKeyAuth.call([])
+  end
 
   plug(Plug.Static, from: {:vintage_net_wizard, "priv/static"}, at: "/")
   plug(Plug.Parsers, parsers: [Plug.Parsers.URLENCODED, :json], json_decoder: Jason)
@@ -35,18 +38,25 @@ defmodule VintageNetWizard.Web.Router do
     Regex.match?(@ip_regex, ip)
   end
 
+  # Protect specific routes with authentication
+  # For example, to protect the root route:
   get "/" do
-    case BackendServer.configurations() do
-      [] ->
-        redirect(conn, "/networks")
+    conn = authenticate(conn, [])
+    if conn.halted do
+      conn
+    else
+      case BackendServer.configurations() do
+        [] ->
+          redirect(conn, "/networks")
 
-      configs ->
-        render_page(conn, "index.html", opts,
-          configs: configs,
-          configuration_status: configuration_status_details(),
-          format_security: &WiFiConfiguration.security_name/1,
-          get_key_mgmt: &WiFiConfiguration.get_key_mgmt/1
-        )
+        configs ->
+          render_page(conn, "index.html", opts,
+            configs: configs,
+            configuration_status: configuration_status_details(),
+            format_security: &WiFiConfiguration.security_name/1,
+            get_key_mgmt: &WiFiConfiguration.get_key_mgmt/1
+          )
+      end
     end
   end
 
@@ -250,8 +260,47 @@ defmodule VintageNetWizard.Web.Router do
   end
 
   # En lugar de usar pipe_through :api, aplicamos el plug directamente en forward
+  # We're adding auth at forwarded route level
   forward("/api/v1", to: VintageNetWizard.Web.ApiV1, plug: VintageNetWizard.Plugs.ApiKeyAuth)
   forward("/api/v2", to: VintageNetWizard.Web.ApiV2, plug: VintageNetWizard.Plugs.ApiKeyAuth)
+
+  # Add a test route to verify authentication
+  get "/auth_test" do
+    conn = put_resp_content_type(conn, "application/json")
+
+    try do
+      conn = VintageNetWizard.Plugs.ApiKeyAuth.call(conn, [])
+
+      if conn.halted do
+        # Auth failed, but response was already sent by the plug
+        conn
+      else
+        # Auth successful
+        # Get claims from conn.assigns if they exist
+        claims = conn.assigns[:jwt_claims] || %{}
+
+        device_info = BackendServer.device_info()
+
+        # Get system MAC address
+        system_mac = case Enum.find(device_info, fn {label, _} -> label == "WiFi Address" end) do
+          {_, mac} when is_binary(mac) -> mac
+          _ -> "unknown"
+        end
+
+        # Respond with success info
+        send_resp(conn, 200, Jason.encode!(%{
+          authenticated: true,
+          token_mac: claims["mac_address"],
+          system_mac: system_mac,
+          claims: claims
+        }))
+      end
+    rescue
+      e ->
+        Logger.error("Authentication test error: #{inspect(e)}")
+        send_resp(conn, 500, Jason.encode!(%{error: "Internal server error", details: inspect(e)}))
+    end
+  end
 
   match _ do
     send_resp(conn, 404, "oops")
