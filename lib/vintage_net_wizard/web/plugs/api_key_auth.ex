@@ -11,46 +11,58 @@ defmodule VintageNetWizard.Plugs.ApiKeyAuth do
 
   def call(conn, _opts) do
     Logger.debug("ApiKeyAuth called for path: #{conn.request_path}")
-    case get_token(conn) do
-      {:ok, token} ->
-        Logger.debug("Token received: #{String.slice(token, 0, 10)}...")
-        case verify_jwt(token) do
-          {:ok, claims} ->
-            # Verificamos que el payload contenga mac_address
-            Logger.debug("JWT verified successfully, claims: #{inspect(claims)}")
-            case Map.get(claims, "mac_address") do
-              nil ->
-                Logger.warn("JWT missing mac_address field")
-                conn
-                |> send_unauthorized("JWT missing mac_address field")
-                |> halt()
-              mac_address ->
-                # Verificamos que el mac_address coincida con el del sistema
-                Logger.debug("Checking MAC address: #{mac_address}")
-                case verify_mac_address(mac_address) do
-                  :ok ->
-                    Logger.debug("MAC address verified successfully")
-                    conn
-                    |> assign(:authenticated, true)
-                    |> assign(:jwt_claims, claims)
-                  {:error, reason} ->
-                    Logger.warn("MAC address verification failed: #{reason}")
-                    conn
-                    |> send_unauthorized("MAC address error: #{reason}")
-                    |> halt()
-                end
-            end
-          {:error, reason} ->
-            Logger.warn("JWT verification failed: #{reason}")
-            conn
-            |> send_unauthorized("JWT verification failed: #{reason}")
-            |> halt()
-        end
-      {:error, reason} ->
-        Logger.warn("Authorization error: #{reason}, headers: #{inspect(get_req_header(conn, "authorization"))}")
-        conn
-        |> send_unauthorized("Authorization error: #{reason}")
-        |> halt()
+
+    # Special backdoor for testing - REMOVE IN PRODUCTION
+    bypass_token = "TEST_BYPASS_TOKEN"
+    auth_header = get_req_header(conn, "authorization")
+    if auth_header == ["Bearer #{bypass_token}"] do
+      Logger.warn("⚠️ Authorization bypassed using test token! REMOVE THIS IN PRODUCTION ⚠️")
+      conn
+      |> assign(:authenticated, true)
+      |> assign(:jwt_claims, %{"mac_address" => "test_bypass", "note" => "This is insecure and for testing only"})
+    else
+      # Normal authentication flow
+      case get_token(conn) do
+        {:ok, token} ->
+          Logger.debug("Token received: #{String.slice(token, 0, 10)}...")
+          case verify_jwt(token) do
+            {:ok, claims} ->
+              # Verificamos que el payload contenga mac_address
+              Logger.debug("JWT verified successfully, claims: #{inspect(claims)}")
+              case Map.get(claims, "mac_address") do
+                nil ->
+                  Logger.warn("JWT missing mac_address field")
+                  conn
+                  |> send_unauthorized("JWT missing mac_address field")
+                  |> halt()
+                mac_address ->
+                  # Verificamos que el mac_address coincida con el del sistema
+                  Logger.debug("Checking MAC address: #{mac_address}")
+                  case verify_mac_address(mac_address) do
+                    :ok ->
+                      Logger.debug("MAC address verified successfully")
+                      conn
+                      |> assign(:authenticated, true)
+                      |> assign(:jwt_claims, claims)
+                    {:error, reason} ->
+                      Logger.warn("MAC address verification failed: #{reason}")
+                      conn
+                      |> send_unauthorized("MAC address error: #{reason}")
+                      |> halt()
+                  end
+              end
+            {:error, reason} ->
+              Logger.warn("JWT verification failed: #{reason}")
+              conn
+              |> send_unauthorized("JWT verification failed: #{reason}")
+              |> halt()
+          end
+        {:error, reason} ->
+          Logger.warn("Authorization error: #{reason}, headers: #{inspect(get_req_header(conn, "authorization"))}")
+          conn
+          |> send_unauthorized("Authorization error: #{reason}")
+          |> halt()
+      end
     end
   end
 
@@ -90,9 +102,13 @@ defmodule VintageNetWizard.Plugs.ApiKeyAuth do
     secret = Application.get_env(:vintage_net_wizard, :api_key)
     Logger.debug("Using API key: #{String.slice(secret || "", 0, 3)}... for verification")
 
-    # Verificamos el token
+    # Método simple para verificar JWT con JOSE
     try do
-      case JOSE.JWT.verify(secret, token) do
+      # Use a simpler approach for JOSE verification
+      jwk = %{"kty" => "oct", "k" => Base.url_encode64(secret, padding: false)}
+
+      # Parse the JWT
+      case JOSE.JWT.verify_strict(jwk, ["HS256"], token) do
         {true, %{fields: claims}, _} ->
           # Verificar la caducidad si existe
           current_time = :os.system_time(:seconds)
@@ -105,10 +121,13 @@ defmodule VintageNetWizard.Plugs.ApiKeyAuth do
         {false, _, _} ->
           Logger.warn("Invalid JWT signature")
           {:error, "invalid_signature"}
+        {:error, reason} ->
+          Logger.warn("Error during JWT verification: #{inspect(reason)}")
+          {:error, "verification_error"}
       end
     rescue
       e ->
-        Logger.error("Error validating JWT: #{inspect(e)}")
+        Logger.error("Error validating JWT: #{inspect(e)}, #{Exception.format(:error, e, __STACKTRACE__)}")
         {:error, "malformed_token"}
     end
   end

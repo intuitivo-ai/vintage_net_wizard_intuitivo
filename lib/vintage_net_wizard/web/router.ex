@@ -259,10 +259,34 @@ defmodule VintageNetWizard.Web.Router do
     render_page(conn, "complete.html", opts)
   end
 
-  # En lugar de usar pipe_through :api, aplicamos el plug directamente en forward
-  # We're adding auth at forwarded route level
-  forward("/api/v1", to: VintageNetWizard.Web.ApiV1, plug: VintageNetWizard.Plugs.ApiKeyAuth)
-  forward("/api/v2", to: VintageNetWizard.Web.ApiV2, plug: VintageNetWizard.Plugs.ApiKeyAuth)
+  # Handle API routes with authentication
+  match "/api/v1/*path" do
+    # First authenticate
+    conn = VintageNetWizard.Plugs.ApiKeyAuth.call(conn, [])
+
+    if conn.halted do
+      # The API Key auth plug already sent a response
+      conn
+    else
+      # Forward to the API module
+      opts = VintageNetWizard.Web.ApiV1.init([])
+      VintageNetWizard.Web.ApiV1.call(conn, opts)
+    end
+  end
+
+  match "/api/v2/*path" do
+    # First authenticate
+    conn = VintageNetWizard.Plugs.ApiKeyAuth.call(conn, [])
+
+    if conn.halted do
+      # The API Key auth plug already sent a response
+      conn
+    else
+      # Forward to the API module
+      opts = VintageNetWizard.Web.ApiV2.init([])
+      VintageNetWizard.Web.ApiV2.call(conn, opts)
+    end
+  end
 
   # Add a test route to verify authentication
   get "/auth_test" do
