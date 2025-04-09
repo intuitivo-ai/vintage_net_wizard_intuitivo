@@ -260,7 +260,7 @@ defmodule VintageNetWizard.Web.Router do
   end
 
   # Handle API routes with authentication
-  match "/api/v1/*_path" do
+  match "/api/v1/*path" do
     # First authenticate
     conn = VintageNetWizard.Plugs.ApiKeyAuth.call(conn, [])
 
@@ -268,16 +268,21 @@ defmodule VintageNetWizard.Web.Router do
       # The API Key auth plug already sent a response
       conn
     else
-      # Get the path without the /api/v1 prefix - with nil safety
-      path_segments = conn.path_params["_path"] || []
-      path = if path_segments == [], do: "/", else: "/" <> Enum.join(path_segments, "/")
+      # Get the path segments from the path param
+      path_segments = conn.path_params["path"] || []
 
-      # Create new conn with adjusted path_info
+      # Log for debugging
+      Logger.debug("API v1 routing - path_segments: #{inspect(path_segments)}, path_params: #{inspect(conn.path_params)}")
+
+      # Create a new path string
+      new_path = "/" <> Enum.join(path_segments, "/")
+
+      # Set up the connection for the API module
       conn = %{conn |
         path_info: path_segments,
-        request_path: path,
-        params: Map.drop(conn.params, ["_path"]),
-        path_params: Map.drop(conn.path_params, ["_path"])
+        request_path: new_path,
+        params: Map.drop(conn.params, ["path"]),
+        path_params: Map.drop(conn.path_params, ["path"])
       }
 
       # Forward to the API module
@@ -286,7 +291,7 @@ defmodule VintageNetWizard.Web.Router do
     end
   end
 
-  match "/api/v2/*_path" do
+  match "/api/v2/*path" do
     # First authenticate
     conn = VintageNetWizard.Plugs.ApiKeyAuth.call(conn, [])
 
@@ -294,16 +299,21 @@ defmodule VintageNetWizard.Web.Router do
       # The API Key auth plug already sent a response
       conn
     else
-      # Get the path without the /api/v2 prefix - with nil safety
-      path_segments = conn.path_params["_path"] || []
-      path = if path_segments == [], do: "/", else: "/" <> Enum.join(path_segments, "/")
+      # Get the path segments from the path param
+      path_segments = conn.path_params["path"] || []
 
-      # Create new conn with adjusted path_info
+      # Log for debugging
+      Logger.debug("API v2 routing - path_segments: #{inspect(path_segments)}, path_params: #{inspect(conn.path_params)}")
+
+      # Create a new path string
+      new_path = "/" <> Enum.join(path_segments, "/")
+
+      # Set up the connection for the API module
       conn = %{conn |
         path_info: path_segments,
-        request_path: path,
-        params: Map.drop(conn.params, ["_path"]),
-        path_params: Map.drop(conn.path_params, ["_path"])
+        request_path: new_path,
+        params: Map.drop(conn.params, ["path"]),
+        path_params: Map.drop(conn.path_params, ["path"])
       }
 
       # Forward to the API module
