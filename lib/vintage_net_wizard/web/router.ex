@@ -268,14 +268,16 @@ defmodule VintageNetWizard.Web.Router do
       # The API Key auth plug already sent a response
       conn
     else
-      # Get the path without the /api/v1 prefix
-      # This is crucial - we need to adjust the path_info before forwarding
-      path = Enum.join(["/" | conn.path_params["_path"]], "/")
+      # Get the path without the /api/v1 prefix - with nil safety
+      path_segments = conn.path_params["_path"] || []
+      path = if path_segments == [], do: "/", else: "/" <> Enum.join(path_segments, "/")
 
       # Create new conn with adjusted path_info
       conn = %{conn |
-        path_info: conn.path_params["_path"],
-        request_path: path
+        path_info: path_segments,
+        request_path: path,
+        params: Map.drop(conn.params, ["_path"]),
+        path_params: Map.drop(conn.path_params, ["_path"])
       }
 
       # Forward to the API module
@@ -292,14 +294,16 @@ defmodule VintageNetWizard.Web.Router do
       # The API Key auth plug already sent a response
       conn
     else
-      # Get the path without the /api/v2 prefix
-      # This is crucial - we need to adjust the path_info before forwarding
-      path = Enum.join(["/" | conn.path_params["_path"]], "/")
+      # Get the path without the /api/v2 prefix - with nil safety
+      path_segments = conn.path_params["_path"] || []
+      path = if path_segments == [], do: "/", else: "/" <> Enum.join(path_segments, "/")
 
       # Create new conn with adjusted path_info
       conn = %{conn |
-        path_info: conn.path_params["_path"],
-        request_path: path
+        path_info: path_segments,
+        request_path: path,
+        params: Map.drop(conn.params, ["_path"]),
+        path_params: Map.drop(conn.path_params, ["_path"])
       }
 
       # Forward to the API module
