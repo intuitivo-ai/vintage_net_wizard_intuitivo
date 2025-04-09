@@ -260,7 +260,7 @@ defmodule VintageNetWizard.Web.Router do
   end
 
   # Handle API routes with authentication
-  match "/api/v1/*path" do
+  match "/api/v1/*_path" do
     # First authenticate
     conn = VintageNetWizard.Plugs.ApiKeyAuth.call(conn, [])
 
@@ -268,13 +268,23 @@ defmodule VintageNetWizard.Web.Router do
       # The API Key auth plug already sent a response
       conn
     else
+      # Get the path without the /api/v1 prefix
+      # This is crucial - we need to adjust the path_info before forwarding
+      path = Enum.join(["/" | conn.path_params["_path"]], "/")
+
+      # Create new conn with adjusted path_info
+      conn = %{conn |
+        path_info: conn.path_params["_path"],
+        request_path: path
+      }
+
       # Forward to the API module
       opts = VintageNetWizard.Web.ApiV1.init([])
       VintageNetWizard.Web.ApiV1.call(conn, opts)
     end
   end
 
-  match "/api/v2/*path" do
+  match "/api/v2/*_path" do
     # First authenticate
     conn = VintageNetWizard.Plugs.ApiKeyAuth.call(conn, [])
 
@@ -282,6 +292,16 @@ defmodule VintageNetWizard.Web.Router do
       # The API Key auth plug already sent a response
       conn
     else
+      # Get the path without the /api/v2 prefix
+      # This is crucial - we need to adjust the path_info before forwarding
+      path = Enum.join(["/" | conn.path_params["_path"]], "/")
+
+      # Create new conn with adjusted path_info
+      conn = %{conn |
+        path_info: conn.path_params["_path"],
+        request_path: path
+      }
+
       # Forward to the API module
       opts = VintageNetWizard.Web.ApiV2.init([])
       VintageNetWizard.Web.ApiV2.call(conn, opts)
