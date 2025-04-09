@@ -271,9 +271,6 @@ defmodule VintageNetWizard.Web.Router do
       # Get the path segments from the path param
       path_segments = conn.path_params["path"] || []
 
-      # Log for debugging
-      Logger.debug("API v1 routing - path_segments: #{inspect(path_segments)}, path_params: #{inspect(conn.path_params)}")
-
       # Create a new path string
       new_path = "/" <> Enum.join(path_segments, "/")
 
@@ -302,9 +299,6 @@ defmodule VintageNetWizard.Web.Router do
       # Get the path segments from the path param
       path_segments = conn.path_params["path"] || []
 
-      # Log for debugging
-      Logger.debug("API v2 routing - path_segments: #{inspect(path_segments)}, path_params: #{inspect(conn.path_params)}")
-
       # Create a new path string
       new_path = "/" <> Enum.join(path_segments, "/")
 
@@ -319,44 +313,6 @@ defmodule VintageNetWizard.Web.Router do
       # Forward to the API module
       opts = VintageNetWizard.Web.ApiV2.init([])
       VintageNetWizard.Web.ApiV2.call(conn, opts)
-    end
-  end
-
-  # Add a test route to verify authentication
-  get "/auth_test" do
-    conn = put_resp_content_type(conn, "application/json")
-
-    try do
-      conn = VintageNetWizard.Plugs.ApiKeyAuth.call(conn, [])
-
-      if conn.halted do
-        # Auth failed, but response was already sent by the plug
-        conn
-      else
-        # Auth successful
-        # Get claims from conn.assigns if they exist
-        claims = conn.assigns[:jwt_claims] || %{}
-
-        device_info = BackendServer.device_info()
-
-        # Get system MAC address
-        system_mac = case Enum.find(device_info, fn {label, _} -> label == "WiFi Address" end) do
-          {_, mac} when is_binary(mac) -> mac
-          _ -> "unknown"
-        end
-
-        # Respond with success info
-        send_resp(conn, 200, Jason.encode!(%{
-          authenticated: true,
-          token_mac: claims["mac_address"],
-          system_mac: system_mac,
-          claims: claims
-        }))
-      end
-    rescue
-      e ->
-        Logger.error("Authentication test error: #{inspect(e)}")
-        send_resp(conn, 500, Jason.encode!(%{error: "Internal server error", details: inspect(e)}))
     end
   end
 

@@ -581,21 +581,4 @@ defmodule VintageNetWizard.Web.ApiV2 do
     })
   end
 
-  # Debug endpoint to test routing
-  get "/debug" do
-    # Information about the current request for debugging
-    info = %{
-      path_info: conn.path_info,
-      request_path: conn.request_path,
-      method: conn.method,
-      params: conn.params,
-      jwt_claims: conn.assigns[:jwt_claims] || %{},
-      timestamp: DateTime.utc_now() |> DateTime.to_iso8601()
-    }
-
-    Logger.info("API v2 debug info: #{inspect(info)}")
-
-    send_json(conn, 200, info)
-  end
-
 end
