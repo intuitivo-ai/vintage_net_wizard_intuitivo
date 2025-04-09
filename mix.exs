@@ -67,7 +67,8 @@ defmodule VintageNetWizard.MixProject do
       {:vintage_net_wifi, "~> 0.12.0"},
       {:credo, "~> 1.2", only: :test, runtime: false},
       {:ex_doc, "~> 0.22", only: :docs, runtime: false},
-      {:dialyxir, "~> 1.4.1", only: :dev, runtime: false}
+      {:dialyxir, "~> 1.4.1", only: :dev, runtime: false},
+      {:jose, "~> 1.11"}
     ]
   end
 
