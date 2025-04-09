@@ -98,37 +98,59 @@ defmodule VintageNetWizard.Plugs.ApiKeyAuth do
   end
 
   defp verify_jwt(token) do
-    # Obtenemos la api_key como secreto para verificar la firma
-    secret = Application.get_env(:vintage_net_wizard, :api_key)
-    Logger.debug("Using API key: #{String.slice(secret || "", 0, 3)}... for verification")
+    # Obtenemos la clave de crypto de in2_firmware
+    secret = Application.get_env(:in2_firmware, :key_crypto)
 
-    # Método simple para verificar JWT con JOSE
-    try do
-      # Use a simpler approach for JOSE verification
-      jwk = %{"kty" => "oct", "k" => Base.url_encode64(secret, padding: false)}
+    # Check if secret is nil and handle it properly
+    if is_nil(secret) do
+      Logger.error("API key is not configured! Please set :in2_firmware, :key_crypto in your config.")
+      {:error, "api_key_not_configured"}
+    else
+      Logger.debug("Using API key: #{String.slice(secret || "", 0, 3)}... for verification")
 
-      # Parse the JWT
-      case JOSE.JWT.verify_strict(jwk, ["HS256"], token) do
-        {true, %{fields: claims}, _} ->
-          # Verificar la caducidad si existe
-          current_time = :os.system_time(:seconds)
-          if Map.has_key?(claims, "exp") and claims["exp"] < current_time do
-            Logger.warn("Token expired, exp: #{claims["exp"]}, current: #{current_time}")
-            {:error, "token_expired"}
-          else
-            {:ok, claims}
-          end
-        {false, _, _} ->
-          Logger.warn("Invalid JWT signature")
-          {:error, "invalid_signature"}
-        {:error, reason} ->
-          Logger.warn("Error during JWT verification: #{inspect(reason)}")
-          {:error, "verification_error"}
+      # Método simple para verificar JWT con JOSE
+      try do
+        # Inspect token structure for debugging
+        case JOSE.JWT.peek_payload(token) do
+          %{fields: peek_fields} ->
+            Logger.debug("JWT payload peek: #{inspect(Map.drop(peek_fields, ["mac_address"]))}")
+          _ ->
+            Logger.debug("Could not peek JWT payload")
+        end
+
+        case JOSE.JWT.peek_protected(token) do
+          %{fields: %{"alg" => alg}} ->
+            Logger.debug("JWT algorithm: #{alg}")
+          _ ->
+            Logger.debug("Could not determine JWT algorithm")
+        end
+
+        # Use a simpler approach for JOSE verification
+        jwk = %{"kty" => "oct", "k" => Base.url_encode64(secret, padding: false)}
+
+        # Parse the JWT - accept both HS256 and HS512 for flexibility
+        case JOSE.JWT.verify_strict(jwk, ["HS256", "HS512"], token) do
+          {true, %{fields: claims}, _} ->
+            # Verificar la caducidad si existe
+            current_time = :os.system_time(:seconds)
+            if Map.has_key?(claims, "exp") and claims["exp"] < current_time do
+              Logger.warn("Token expired, exp: #{claims["exp"]}, current: #{current_time}")
+              {:error, "token_expired"}
+            else
+              {:ok, claims}
+            end
+          {false, _, _} ->
+            Logger.warn("Invalid JWT signature")
+            {:error, "invalid_signature"}
+          {:error, reason} ->
+            Logger.warn("Error during JWT verification: #{inspect(reason)}")
+            {:error, "verification_error"}
+        end
+      rescue
+        e ->
+          Logger.error("Error validating JWT: #{inspect(e)}, #{Exception.format(:error, e, __STACKTRACE__)}")
+          {:error, "malformed_token"}
       end
-    rescue
-      e ->
-        Logger.error("Error validating JWT: #{inspect(e)}, #{Exception.format(:error, e, __STACKTRACE__)}")
-        {:error, "malformed_token"}
     end
   end
 
@@ -157,24 +179,36 @@ defmodule VintageNetWizard.Plugs.ApiKeyAuth do
 
     Logger.debug("System MAC: #{system_mac}, Token MAC: #{token_mac}")
 
-    # Normalization workaround for testing - remove in production!
-    # For testing purposes, if token_mac is "bypass_mac_check", skip verification
-    if token_mac == "bypass_mac_check" do
-      Logger.warn("⚠️ MAC address check bypassed using 'bypass_mac_check' token ⚠️")
-      :ok
-    else
-      # Normal verification flow
-      # Normalizar ambos MAC addresses para la comparación
-      normalized_token_mac = normalize_mac(token_mac)
-      normalized_system_mac = normalize_mac(system_mac)
-
-      Logger.debug("Normalized system MAC: #{normalized_system_mac}, normalized token MAC: #{normalized_token_mac}")
-
-      if normalized_token_mac == normalized_system_mac do
+    # Testing bypass conditions - REMOVE IN PRODUCTION!
+    cond do
+      # Option 1: Special bypass value
+      token_mac == "bypass_mac_check" ->
+        Logger.warn("⚠️ MAC address check bypassed using 'bypass_mac_check' token ⚠️")
         :ok
-      else
-        {:error, "mac_address_mismatch"}
-      end
+
+      # Option 2: Development environment bypass option
+      Application.get_env(:in2_firmware, :bypass_mac_check, false) == true ->
+        Logger.warn("⚠️ MAC address check bypassed via configuration! This is insecure. ⚠️")
+        :ok
+
+      # Option 3: Empty MAC address is checked in local dev environment only
+      token_mac == "00:00:00:00:00:00" and Mix.env() != :prod ->
+        Logger.warn("⚠️ MAC address check bypassed for development (00:00:00:00:00:00)! ⚠️")
+        :ok
+
+      # Normal verification flow
+      true ->
+        # Normalizar ambos MAC addresses para la comparación
+        normalized_token_mac = normalize_mac(token_mac)
+        normalized_system_mac = normalize_mac(system_mac)
+
+        Logger.debug("Normalized system MAC: #{normalized_system_mac}, normalized token MAC: #{normalized_token_mac}")
+
+        if normalized_token_mac == normalized_system_mac do
+          :ok
+        else
+          {:error, "mac_address_mismatch"}
+        end
     end
   end
 
@@ -192,5 +226,37 @@ defmodule VintageNetWizard.Plugs.ApiKeyAuth do
     conn
     |> put_resp_content_type("application/json")
     |> send_resp(401, Jason.encode!(%{error: message}))
+  end
+
+  @doc """
+  Utility function to create a test token - ONLY FOR TESTING/DEVELOPMENT
+
+  Example usage:
+  ```
+  iex> VintageNetWizard.Plugs.ApiKeyAuth.create_test_token("00:11:22:33:44:55")
+  "eyJhbGciOiJIUzI1NiJ9.eyJtYWNfYWRkcmVzcyI6IjAwOjExOjIyOjMzOjQ0OjU1In0...."
+  ```
+  """
+  def create_test_token(mac_address) do
+    if Mix.env() == :prod do
+      raise "Cannot create test tokens in production environment!"
+    end
+
+    secret = Application.get_env(:in2_firmware, :key_crypto)
+
+    if is_nil(secret) do
+      raise "API key not configured! Set :in2_firmware, :key_crypto in your config."
+    end
+
+    # Create the payload with the MAC address
+    payload = %{"mac_address" => mac_address}
+
+    # Create a JOSE JWK for the secret
+    jwk = %{"kty" => "oct", "k" => Base.url_encode64(secret, padding: false)}
+
+    # Create and sign the token
+    JOSE.JWT.sign(jwk, %{"alg" => "HS256"}, payload)
+    |> JOSE.JWS.compact
+    |> elem(1)
   end
 end
