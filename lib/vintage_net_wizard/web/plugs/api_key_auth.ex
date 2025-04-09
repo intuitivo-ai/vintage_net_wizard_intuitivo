@@ -47,10 +47,31 @@ defmodule VintageNetWizard.Plugs.ApiKeyAuth do
 
   # Obtener el token del header Authorization
   defp get_token(conn) do
-    case get_req_header(conn, "authorization") do
-      [token] when is_binary(token) -> {:ok, token}
-      [] -> {:error, "authorization_header_missing"}
-      _ -> {:error, "invalid_authorization_format"}
+    auth_header = get_req_header(conn, "authorization")
+
+    case auth_header do
+      # Caso 1: "Bearer " + token (formato estándar)
+      ["Bearer " <> token] when is_binary(token) and byte_size(token) > 0 ->
+        {:ok, String.trim(token)}
+
+      # Caso 2: Intenta extraer el token si comienza con "Bearer"
+      [header] when is_binary(header) ->
+        header = String.trim(header)
+        if String.starts_with?(header, "Bearer") do
+          [_, token] = String.split(header, "Bearer", parts: 2)
+          {:ok, String.trim(token)}
+        else
+          # Si no hay "Bearer", intentamos usar el header completo como token
+          {:ok, header}
+        end
+
+      # Caso 3: Header de autorización vacío o ausente
+      [] ->
+        {:error, "authorization_header_missing"}
+
+      # Caso 4: Cualquier otro formato no reconocido
+      _ ->
+        {:error, "invalid_authorization_format"}
     end
   end
 
