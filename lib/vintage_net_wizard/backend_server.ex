@@ -10,6 +10,29 @@ defmodule VintageNetWizard.BackendServer do
 
   defmodule State do
     @moduledoc false
+
+    @type t :: %__MODULE__{
+      subscriber: pid() | nil,
+      backend: module() | nil,
+      backend_state: term() | nil,
+      configurations: map(),
+      device_info: list(),
+      ap_ifname: String.t() | nil,
+      ifname: String.t() | nil,
+      internet_select: String.t() | nil,
+      state_nama: %{enabled: boolean()},
+      state_profile: %{profile: integer()},
+      state_temperature: %{temperature: String.t()},
+      state_version: %{version: String.t()},
+      state_comm: boolean(),
+      init_cam: boolean(),
+      door: %{door: boolean(), timestamp: String.t()},
+      lock: %{lock: boolean(), working: boolean(), timestamp: String.t()},
+      lock_type: %{lock_type: String.t()},
+      apn: String.t(),
+      ntp: String.t()
+    }
+
     defstruct subscriber: nil,
               backend: nil,
               backend_state: nil,
@@ -17,19 +40,18 @@ defmodule VintageNetWizard.BackendServer do
               device_info: [],
               ap_ifname: nil,
               ifname: nil,
-              lock: false,
-              door: %{},
-              status_lock: %{},
-              lock_type: %{},
-              state_imbera: %{},
-              state_nama: %{},
-              state_profile: %{},
-              temp: %{},
-              version: %{},
+              internet_select: "disabled",
+              state_nama: %{enabled: false},
+              state_profile: %{profile: 1},
+              state_temperature: %{temperature: "unknown"},
+              state_version: %{version: ""},
+              state_comm: true,
               init_cam: false,
-              stop_cam: false,
-              lock_type_select: "",
-              change_lock: false
+              door: %{door: false, timestamp: DateTime.utc_now() |> DateTime.to_iso8601()},
+              lock: %{lock: false, working: true, timestamp: DateTime.utc_now() |> DateTime.to_iso8601()},
+              lock_type: %{lock_type: "retrofit"},
+              apn: "",
+              ntp: ""
   end
 
   @spec child_spec(any(), any(), keyword()) :: map()
@@ -55,6 +77,10 @@ defmodule VintageNetWizard.BackendServer do
     GenServer.cast(__MODULE__, {:subscribe, self()})
   end
 
+  @spec start_cams_ap(any()) :: :ok
+  def start_cams_ap(value) do
+    GenServer.cast(__MODULE__, {:start_cams_ap, value})
+  end
   @doc """
   Return information about the device for the web page's footer
   """
@@ -113,14 +139,21 @@ defmodule VintageNetWizard.BackendServer do
   end
 
   @doc """
-  Save a network configuration to the backend
-
+  Save a network configuration to the backend.
   The network configuration is a map that can be included in the `:network`
   field of a `VintageNetWiFi` configuration.
   """
   @spec save(map()) :: :ok | {:error, any()}
   def save(config) do
     GenServer.call(__MODULE__, {:save, config})
+  end
+
+  @doc """
+  Get complete board configuration
+  """
+  @spec get_board_config() :: map()
+  def get_board_config() do
+    GenServer.call(__MODULE__, :get_board_config)
   end
 
   def save_method(config) do
@@ -143,6 +176,14 @@ defmodule VintageNetWizard.BackendServer do
     GenServer.cast(__MODULE__, {:save_apn, apn})
   end
 
+  def reboot do
+    GenServer.cast(__MODULE__, :reboot)
+  end
+
+  def change_profile(profile) do
+    GenServer.cast(__MODULE__, {:change_profile, profile})
+  end
+
   @doc """
   Get a list of the current configurations
   """
@@ -154,7 +195,7 @@ defmodule VintageNetWizard.BackendServer do
   @doc """
   Get the current configuration status
   """
-  @spec configuration_status() :: any()
+  @spec configuration_status() :: :good | :bad | :not_configured
   def configuration_status() do
     GenServer.call(__MODULE__, :configuration_status)
   end
@@ -219,36 +260,16 @@ defmodule VintageNetWizard.BackendServer do
     GenServer.cast(__MODULE__, {:change_lock, value})
   end
 
-  def set_init_cam(value) do
-    GenServer.cast(__MODULE__, {:set_init_cam, value})
-  end
-
-  def set_stop_cam(value) do
-    GenServer.cast(__MODULE__, {:set_stop_cam, value})
+  def set_state_comm(value) do
+    GenServer.cast(__MODULE__, {:set_state_comm, value})
   end
 
   def get_door() do
     GenServer.call(__MODULE__, :get_door)
   end
 
-  def get_apn() do
-    GenServer.call(__MODULE__, :get_apn)
-  end
-
-  def get_ntp() do
-    GenServer.call(__MODULE__, :get_ntp)
-  end
-
   def get_state_imbera() do
     GenServer.call(__MODULE__, :get_state_imbera)
-  end
-
-  def get_state_nama() do
-    GenServer.call(__MODULE__, :get_state_nama)
-  end
-
-  def get_state_profile() do
-    GenServer.call(__MODULE__, :get_state_profile)
   end
 
   def get_temp() do
@@ -271,16 +292,16 @@ defmodule VintageNetWizard.BackendServer do
     GenServer.call(__MODULE__, :get_change_lock)
   end
 
-  def get_change_lock_type() do
-    GenServer.call(__MODULE__, :get_change_lock_type)
+  def stop_cameras() do
+    GenServer.cast(__MODULE__, :stop_cameras)
   end
 
-  def init_cam() do
-    GenServer.call(__MODULE__, :init_cam)
-  end
-
-  def stop_cam() do
-    GenServer.call(__MODULE__, :stop_cam)
+   @doc """
+  Initialize cameras
+  """
+  @spec init_cameras() :: :ok
+  def init_cameras() do
+    GenServer.cast(__MODULE__, :init_cameras)
   end
 
   @impl GenServer
@@ -294,6 +315,8 @@ defmodule VintageNetWizard.BackendServer do
 
     ap_ifname = Keyword.fetch!(opts, :ap_ifname)
 
+    result = get_init_values()
+
     {:ok,
      %State{
        configurations: configurations,
@@ -302,38 +325,24 @@ defmodule VintageNetWizard.BackendServer do
        backend_state: backend.init(ifname, ap_ifname),
        device_info: device_info,
        ifname: ifname,
-       ap_ifname: ap_ifname
+       ap_ifname: ap_ifname,
+       internet_select: result.internet_select,
+       apn: result.apn,
+       ntp: result.ntps
      }}
   end
 
   @impl GenServer
-  def handle_call(
-        :init_cam,
-        _from,
-          state
-      ) do
+  def handle_call(:get_lock, _from, %State{state_comm: state_comm} = state) do
 
-        {:reply, state.init_cam, state}
-  end
+    lock = if state_comm do
+      state.lock
+    else
+      # Cuando state_comm es false, actualizamos working a false manteniendo el resto igual
+      %{state.lock | working: false}
+    end
 
-  @impl GenServer
-  def handle_call(
-        :stop_cam,
-        _from,
-          state
-      ) do
-
-        {:reply, state.stop_cam, state}
-  end
-
-  @impl GenServer
-  def handle_call(
-        :get_lock,
-        _from,
-          state
-      ) do
-
-    {:reply, state.status_lock, state}
+    {:reply, lock, state}
   end
 
   @impl GenServer
@@ -358,126 +367,12 @@ defmodule VintageNetWizard.BackendServer do
 
   @impl GenServer
   def handle_call(
-        :get_change_lock_type,
-        _from,
-          state
-      ) do
-
-    {:reply, %{"lock_type_select" => state.lock_type_select, "change_lock" => state.change_lock}, state}
-  end
-
-  @impl GenServer
-  def handle_call(
         :get_door,
         _from,
           state
       ) do
 
     {:reply, state.door, state}
-  end
-
-  @impl GenServer
-  def handle_call(
-        :get_apn,
-        _from,
-          state
-      ) do
-
-    result = File.read("/root/apn.txt")
-
-    apn = case result do
-      {:ok, binary} -> binary
-      {:error, _posix} -> ""
-    end
-
-    {:reply, %{apn: apn}, state}
-  end
-
-  @impl GenServer
-  def handle_call(
-        :get_ntp,
-        _from,
-          state
-      ) do
-
-    result = File.read("/root/ntps.txt")
-
-    list = case result do
-      {:ok, binary} -> binary
-      {:error, _posix} -> ""
-    end
-
-    {:reply, %{ntp: list}, state}
-  end
-
-  @impl GenServer
-  def handle_call(
-        :get_state_imbera,
-        _from,
-          state
-      ) do
-
-    {:reply, state.state_imbera, state}
-  end
-
-  @impl GenServer
-  def handle_call(
-        :get_state_nama,
-        _from,
-          state
-      ) do
-
-    {:reply, state.state_nama, state}
-  end
-
-  @impl GenServer
-  def handle_call(
-        :get_state_profile,
-        _from,
-          state
-      ) do
-
-    {:reply, state.state_profile, state}
-  end
-
-  @impl GenServer
-  def handle_call(
-        :get_temp,
-        _from,
-          state
-      ) do
-
-    {:reply, state.temp, state}
-  end
-
-  @impl GenServer
-  def handle_call(
-        :get_version,
-        _from,
-          state
-      ) do
-
-    {:reply, state.version, state}
-  end
-
-  @impl GenServer
-  def handle_call(
-        :get_open_lock,
-        _from,
-          state
-      ) do
-
-    {:reply, state.open_lock, state}
-  end
-
-  @impl GenServer
-  def handle_call(
-        :get_close_lock,
-        _from,
-          state
-      ) do
-
-    {:reply, state.close_lock, state}
   end
 
   @impl GenServer
@@ -495,10 +390,12 @@ defmodule VintageNetWizard.BackendServer do
         _from,
         %State{backend: backend, backend_state: backend_state} = state
       ) do
+
     new_backend_state = backend.start_scan(backend_state)
 
     {:reply, :ok, %{state | backend_state: new_backend_state}}
   end
+
 
   def handle_call(
         :stop_scan,
@@ -602,6 +499,57 @@ defmodule VintageNetWizard.BackendServer do
     end
   end
 
+  def handle_call(:get_board_config, _from, %State{backend: backend, backend_state: backend_state} = state) do
+
+    status = backend.configuration_status(backend_state)
+
+    result = case File.read("/root/.secret_wifi.txt") do
+      {:ok, content} ->
+        # Intenta decodificar el contenido como JSON
+        case Jason.decode(content) do
+          {:ok, json_data} ->
+            # Si es JSON válido, usa directamente los campos ssid y password
+            %{
+              ssid: json_data["ssid"] || "",
+              password: json_data["password"] || ""
+            }
+
+          {:error, _} ->
+            %{ssid: "", password: ""}
+        end
+
+      {:error, _reason} ->
+        # Si hay un error al leer el archivo, devolver valores vacíos
+        %{ssid: "", password: ""}
+    end
+
+    config = %{
+      lockType: state.lock_type["lock_type"],
+      wifi: %{
+        networks: get_wifi_networks(state),
+        method: get_network_method(),
+        static_config: get_static_config()
+      },
+      mobileNetwork: %{
+        apn: state.apn
+      },
+      hotspotOutput: state.internet_select || "disabled",
+      wifihotspotOutput: %{
+        ssid: result.ssid,
+        password: result.password
+      },
+      nama: %{
+        enabled: state.state_nama.enabled || false,
+        profile: state.state_profile.profile,
+        temperature: state.state_temperature.temperature || "unknown",
+        version: state.state_version.version || ""
+      },
+      ntp: state.ntp,
+      status_wifi: %{status: status, timestamp: DateTime.utc_now() |> DateTime.to_iso8601(), details: configuration_status_details(status)}
+    }
+    {:reply, config, state}
+  end
+
   def handle_call(:reset, _from, %State{backend: backend, backend_state: backend_state} = state) do
     new_state = backend.reset(backend_state)
     {:reply, :ok, %{state | configurations: %{}, backend_state: new_state}}
@@ -641,13 +589,95 @@ defmodule VintageNetWizard.BackendServer do
   end
 
   @impl GenServer
+  def handle_cast({:start_cams_ap, _value}, state) do
+
+    In2Firmware.Services.Operations.ReviewHW.get_lock_type()
+    In2Firmware.Services.Operations.ReviewHW.get_profile()
+    In2Firmware.Services.Operations.ReviewHW.get_version()
+    In2Firmware.Services.Operations.ReviewHW.get_state_comm()
+    In2Firmware.Services.Operations.ReviewHW.get_init_state()
+
+    #if value == :ap do
+      #send(self(), :re_init_stream_gst)
+    #  send(self(), :init_stream_gst)
+    #else
+     #Process.send_after(self(), :re_init_stream_gst, 10_000)
+    # Process.send_after(self(), :init_stream_gst, 5_000)
+    #end
+
+    {:noreply,  state}
+  end
+
+  @impl GenServer
+  def handle_cast(:init_cameras, state) do
+
+    # Verifica el estado de la cámara y actúa en consecuencia
+    #if StreamServerIntuitivo.ServerManager.get_server("camera0") in [nil, "offline"] do
+    #  StreamServerIntuitivo.ServerManager.start_server(
+    #    "camera0",           # Unique name for this stream
+    #    "127.0.0.1",    # TCP host (camera IP)
+    #    6000,               # TCP port
+    #    11000                # HTTP port where the stream will be available
+    #  )
+    #end
+
+    #if StreamServerIntuitivo.ServerManager.get_server("camera1") in [nil, "offline"] do
+    #  StreamServerIntuitivo.ServerManager.start_server(
+    #    "camera1",           # Unique name for this stream
+    #    "127.0.0.1",    # TCP host (camera IP)
+    #    6001,               # TCP port
+    #    11001                # HTTP port where the stream will be available
+    #  )
+    #end
+
+    #if StreamServerIntuitivo.ServerManager.get_server("camera2") in [nil, "offline"] do
+    #  StreamServerIntuitivo.ServerManager.start_server(
+    #    "camera2",           # Unique name for this stream
+    #    "127.0.0.1",    # TCP host (camera IP)
+    #    6002,               # TCP port
+    #    11002                # HTTP port where the stream will be available
+    #  )
+    #end
+
+    In2Firmware.Services.Operations.re_init_http()
+
+    {:noreply, state}
+  end
+
+  @impl GenServer
+  def handle_cast(:stop_cameras, state) do
+
+    Logger.info("stop_cameras from backend_server")
+
+    #StreamServerIntuitivo.ServerManager.stop_server("camera0")
+    #StreamServerIntuitivo.ServerManager.stop_server("camera1")
+    #StreamServerIntuitivo.ServerManager.stop_server("camera2")
+
+    #In2Firmware.Services.Operations.ReviewHW.stop_cameras()
+
+    #In2Firmware.Services.Operations.default_init_cameras()
+
+    In2Firmware.Services.Operations.re_stop_http()
+    In2Firmware.Services.Operations.re_stop_tcp()
+
+    {:noreply,  state}
+  end
+
+  @impl GenServer
   def handle_cast({:set_door, door}, state) do
     {:noreply, %{state | door: door}}
   end
 
   @impl GenServer
   def handle_cast({:set_lock, lock}, state) do
-    {:noreply, %{state | status_lock: lock}}
+    # Aseguramos que el mapa lock tenga todas las claves necesarias
+    complete_lock = %{
+      lock: lock["lock"] || "locked",
+      working: lock["working"],
+      timestamp: lock["timestamp"] || DateTime.utc_now() |> DateTime.to_iso8601()
+    }
+
+    {:noreply, %{state | lock: complete_lock}}
   end
 
   @impl GenServer
@@ -661,34 +691,47 @@ defmodule VintageNetWizard.BackendServer do
   end
 
   @impl GenServer
-  def handle_cast({:set_state_nama, state_nama}, state) do
-    {:noreply, %{state | state_nama: state_nama}}
+  def handle_cast({:set_state_nama, nama}, state) do
+    new_nama = %{enabled: nama}
+    {:noreply, %{state | state_nama: new_nama}}
   end
 
   @impl GenServer
-  def handle_cast({:set_state_profile, state_profile}, state) do
-    {:noreply, %{state | state_profile: state_profile}}
+  def handle_cast({:set_state_profile, profile}, state) do
+
+    new_profile = %{profile: profile}
+    {:noreply, %{state | state_profile: new_profile}}
   end
 
   @impl GenServer
-  def handle_cast({:set_temp, temp}, state) do
-    {:noreply, %{state | temp: temp}}
+  def handle_cast({:set_temp, temperature}, state) do
+    new_temperature = %{temperature: temperature}
+    {:noreply, %{state | state_temperature: new_temperature}}
   end
 
   @impl GenServer
   def handle_cast({:set_version, version}, state) do
-    {:noreply, %{state | version: version}}
+    # Si version viene como string, lo envolvemos en el mapa
+    new_version = %{version: version}
+    {:noreply, %{state | state_version: new_version}}
+  end
+
+  @impl GenServer
+  def handle_cast({:set_state_comm, state_comm}, state) do
+
+    {:noreply, %{state | state_comm: state_comm}}
   end
 
   @impl GenServer
   def handle_cast({:change_lock, value}, state) do
-    {:noreply, %{state | lock: value}}
+
+    In2Firmware.Services.Operations.ReviewHW.change_lock(value)
+
+    {:noreply, state}
   end
 
   @impl GenServer
   def handle_cast({:save_method, value}, state) do
-
-    Logger.info("config: #{inspect(value)}")
 
     config = Jason.encode!(value)
 
@@ -700,31 +743,63 @@ defmodule VintageNetWizard.BackendServer do
   @impl GenServer
   def handle_cast({:save_lock, value}, state) do
 
-    Logger.info("New lock TYPE: #{inspect(value)}")
+    if state.lock_type["lock_type"] != value do
+      In2Firmware.Services.Operations.Utils.set_lock_type(value)
+    end
 
-    {:noreply, %{state | lock_type_select: value, change_lock: true}}
+    {:noreply, state}
   end
 
   @impl GenServer
   def handle_cast({:save_apn, apn}, state) do
 
-    Logger.info("apn: #{inspect(apn)}")
+    if apn != "" do
+      File.write("/root/apn.txt", apn, [:write])
 
-    File.write("/root/apn.txt", apn, [:write])
+      In2Firmware.check_cellular_connection(In2Firmware.target())
+    end
 
-    In2Firmware.check_cellular_connection(In2Firmware.target())
+    {:noreply, state}
+  end
+
+  @impl GenServer
+  def handle_cast(:reboot, state) do
+
+    Process.send_after(self(), :reboot_device, 5_000)
 
     {:noreply, state}
   end
 
   @impl GenServer
   def handle_cast({:save_internet, internet}, state) do
+    if internet != "" and internet != "disabled" do
+      File.write("/root/internet.txt", internet, [:write])
+      if internet == "wwan0_to_wlan0" or internet == "eth0_to_wlan0" do
+        # Generate random SSID and password for AP mode
+        random_ssid = "INTUITIVO_" <> random_string(6)
+        random_password = random_password(16)
 
-    Logger.info("internet: #{inspect(internet)}")
-
-    File.write("/root/internet.txt", internet, [:write])
-
-    In2Firmware.check_sharing_connection()
+        # Save credentials to secret file
+        save_ap_credentials(random_ssid, random_password)
+      else
+        In2Firmware.check_sharing_connection("")
+      end
+    else
+      if File.exists?("/root/internet.txt") do
+        result = File.read("/root/internet.txt")
+        case result do
+          {:ok, interface} ->
+            File.write("/root/internet.txt", "", [:write])
+            In2Firmware.check_sharing_connection(interface)
+          {:error, _posix} ->
+            File.write("/root/internet.txt", "", [:write])
+            In2Firmware.check_sharing_connection("")
+        end
+      else
+        File.write("/root/internet.txt", "", [:write])
+        In2Firmware.check_sharing_connection("")
+      end
+    end
 
     {:noreply, state}
   end
@@ -732,9 +807,8 @@ defmodule VintageNetWizard.BackendServer do
   @impl GenServer
   def handle_cast({:save_ntp, ntps}, state) do
 
-    Logger.info("NTPS: #{inspect(ntps)}")
-
-    File.write("/root/ntps.txt", ntps, [:write])
+    if ntps != "" do
+      File.write("/root/ntps.txt", ntps, [:write])
 
     result = File.read("/root/ntps.txt")
 
@@ -745,20 +819,17 @@ defmodule VintageNetWizard.BackendServer do
       end
       {:error, _posix} -> ""
     end
+    end
 
     {:noreply, state}
   end
 
   @impl GenServer
-  def handle_cast({:set_stop_cam, value}, state) do
+  def handle_cast({:change_profile, profile}, state) do
 
-    {:noreply, %{state | stop_cam: value}}
-  end
+    In2Firmware.Services.Operations.ReviewHW.set_profile(profile)
 
-  @impl GenServer
-  def handle_cast({:set_init_cam, value}, state) do
-
-    {:noreply, %{state | init_cam: value}}
+    {:noreply, state}
   end
 
   @impl GenServer
@@ -790,6 +861,37 @@ defmodule VintageNetWizard.BackendServer do
       {:noreply, new_backend_state} ->
         {:noreply, %{state | backend_state: new_backend_state}}
     end
+  end
+
+  defp get_init_values() do
+
+
+      result = File.read("/root/ntps.txt")
+
+      ntps = case result do
+        {:ok, binary} -> binary
+        {:error, _posix} -> ""
+      end
+
+      result = File.read("/root/apn.txt")
+
+      apn = case result do
+        {:ok, binary} -> binary
+        {:error, _posix} -> ""
+      end
+
+      result = File.read("/root/internet.txt")
+
+      internet_select = case result do
+        {:ok, binary} -> binary
+        {:error, _posix} -> ""
+      end
+
+    %{
+      internet_select: internet_select,
+      apn: apn,
+      ntps: ntps
+    }
   end
 
   defp build_config_list(configs) do
@@ -857,4 +959,162 @@ defmodule VintageNetWizard.BackendServer do
       end
     end
   end
+
+  # Helper functions for board config
+  defp get_wifi_networks(state) do
+    state.configurations
+    |> Map.values()
+    |> Enum.map(fn config ->
+      key_mgmt = case config[:key_mgmt] do
+        :wpa_psk -> "wpa-psk"
+        :wpa2_psk -> "wpa2-psk"
+        :wpa_eap -> "wpa-eap"
+        :none -> "none"
+        nil -> "none"
+        other -> to_string(other)
+      end
+
+      %{
+        ssid: config.ssid,
+        password: config[:psk] || "",
+        key_mgmt: key_mgmt
+      }
+    end)
+  end
+
+  defp get_network_method() do
+    result = File.read("/root/config_wifi.txt")
+
+    case result do
+      {:ok, binary} -> if binary != "" do
+        {:ok, decoded_map} = Jason.decode(binary)
+        case decoded_map["method"] do
+          "dhcp" -> "dhcp"
+          "static" -> "static"
+        end
+      else
+        "dhcp"
+      end
+      {:error, _posix} -> "dhcp"
+    end
+  end
+
+  defp get_static_config() do
+    result = File.read("/root/config_wifi.txt")
+
+    case result do
+      {:ok, binary} -> if binary != "" do
+        {:ok, decoded_map} = Jason.decode(binary)
+        case decoded_map["method"] do
+          "dhcp" -> %{}
+          "static" -> %{
+            address: decoded_map["address"],
+            netmask: decoded_map["netmask"],
+            gateway: decoded_map["gateway"],
+            name_servers: decoded_map["name_servers"]
+        }
+        end
+      else
+        %{}
+      end
+      {:error, _posix} -> %{}
+    end
+  end
+
+
+  def get_cameras() do
+    device_ip = VintageNet.get(["interface", "wlan0", "addresses"])
+                |> Enum.find(fn addr -> addr.family == :inet end)
+                |> case do
+                  nil -> "localhost"
+                  addr -> addr.address
+                         |> Tuple.to_list()
+                         |> Enum.join(".")
+                         |> to_string()
+                end
+
+    [
+       #%{
+       #  id: "cam0",
+       #  name: "Upper Central Camera",
+       #  status: "online",
+       #  streamUrl: "http://#{device_ip}:11000"
+       #},
+       #%{
+       #  id: "cam1",
+       #  name: "Upper Lateral Camera",
+       #  status: "online",
+       #  streamUrl: "http://#{device_ip}:11001"
+       #},
+       #%{
+       #  id: "cam2",
+       #  name: "Lateral Retractable Camera",
+       #  status: "online",
+       #  streamUrl: "http://#{device_ip}:11002"
+       #}
+
+      %{
+        id: "cam0",
+        name: "Upper Central Camera",
+        status: "online",
+        host: device_ip,
+        port: 6000
+      },
+      %{
+        id: "cam1",
+        name: "Upper Lateral Camera",
+        status: "online",
+        host: device_ip,
+        port: 6001
+      },
+      %{
+        id: "cam2",
+        name: "Lateral Retractable Camera",
+        status: "online",
+        host: device_ip,
+        port: 6002
+      }
+
+    ]
+  end
+
+  def configuration_status_details(:not_configured), do: "No network configuration present"
+  def configuration_status_details(:good), do: "Network configured and connected"
+  def configuration_status_details(:bad), do: "Network configuration present but not connected"
+
+  # Generates a random string of specified length using uppercase letters and numbers
+  defp random_string(length) do
+    chars = ~w(A B C D E F G H I J K L M N O P Q R S T U V W X Y Z 0 1 2 3 4 5 6 7 8 9)
+    Enum.take_random(chars, length) |> Enum.join("")
+  end
+
+  # Generates a secure random password with specified minimum length
+  # including uppercase, lowercase, numbers and special characters
+  defp random_password(min_length) do
+    # Ensure we have at least one of each character type
+    upper = random_string(4)
+    lower = String.downcase(random_string(4))
+    numbers = Enum.map(1..4, fn _ -> Enum.random(0..9) end) |> Enum.join("")
+    special = Enum.take_random(~w(! @ # $ % ^ & * + - _ = ~), 4) |> Enum.join("")
+
+    # Combine and shuffle all characters
+    (upper <> lower <> numbers <> special)
+    |> String.graphemes()
+    |> Enum.shuffle()
+    |> Enum.join("")
+  end
+
+  # Saves AP credentials to the secret file
+  defp save_ap_credentials(ssid, password) do
+    credentials = %{
+      ssid: ssid,
+      password: password,
+      key_mgmt: "wpa2-psk",
+      generated_at: DateTime.utc_now() |> DateTime.to_iso8601()
+    }
+
+    json = Jason.encode!(credentials, pretty: true)
+    File.write("/root/.secret_wifi.txt", json, [:write])
+  end
+
 end

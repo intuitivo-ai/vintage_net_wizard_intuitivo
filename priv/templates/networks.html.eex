@@ -84,24 +84,24 @@
                 <img
                   id="cam0"
                   class="h-full p-6 rounded-lg border-2 border-gray-500 flex flex-col relative overflow-hidden test-col-content"
-                  src="/images/noimg.jpg"
-                  alt="cam0"
+                  src="http://192.168.0.1:11000"
+                  alt="Camera 0 Stream"
                 />
               </div>
               <div class="col-span-1 test-col test-cam">
                 <img
                   id="cam1"
                   class="h-full p-6 rounded-lg border-2 border-gray-500 flex flex-col relative overflow-hidden test-col-content"
-                  src="/images/noimg.jpg"
-                  alt="cam1"
+                  src="http://192.168.0.1:11001"
+                  alt="Camera 1 Stream"
                 />
               </div>
               <div class="col-span-1 test-col test-cam">
                 <img
                   id="cam2"
                   class="h-full p-6 rounded-lg border-2 border-gray-500 flex flex-col relative overflow-hidden test-col-content"
-                  src="/images/noimg.jpg"
-                  alt="cam2"
+                  src="http://192.168.0.1:11002"
+                  alt="Camera 2 Stream"
                 />
               </div>
             </div>
@@ -122,9 +122,25 @@
                     <label for="internet_select">Sharing internet to eth</label>
                     <select id="internet_select" name="internet_select" class="custom-select js-security-select">
                       <option value="disabled" selected>disabled</option>
-                      <option value="wwan0">wwan0</option>
-                      <option value="wlan0">wlan0</option>
+                      <option value="wwan0_to_eth0">wwan0_to_eth0</option>
+                      <option value="wlan0_to_eth0">wlan0_to_eth0</option>
+                      <option value="wwan0_to_wlan0">wwan0_to_wlan0</option>
+                      <option value="eth0_to_wlan0">eth0_to_wlan0</option>
                     </select>
+                  </div>
+                  <div id="wifi_credentials" style="display: none;" class="my-3">
+                    <div class="form-group">
+                      <label><strong>WiFi Credentials:</strong></label>
+                      <p class="text-xs font-normal text-gray-600 mt-2">
+                        <strong>SSID:</strong> <span id="wifi_ssid"></span>
+                      </p>
+                      <p class="text-xs font-normal text-gray-600 mt-1">
+                        <strong>Password:</strong> <span id="wifi_password"></span>
+                      </p>
+                    </div>
+                    <button type="button" id="reboot_button" class="btn btn-warning mt-2">
+                      Reboot Device
+                    </button>
                   </div>
                   <button type="submit" class="btn btn-primary" style="background-color:<%= ui.button_color %>">
                     Apply
@@ -240,7 +256,6 @@
                 <p id="nama-imbera"></p>
                 <p class="text-xs font-normal text-gray-600 -mt-1 kit-firmware-v px-3"><strong>Temp</strong>:</p>
                 <p id="temp-imbera"></p>
-                ∏
                 <p class="text-xs font-normal text-gray-600 -mt-1 kit-firmware-v px-3"><strong>Version</strong>:</p>
                 <p id="version-imbera"></p>
               </div>

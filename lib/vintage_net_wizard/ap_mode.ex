@@ -30,9 +30,33 @@ defmodule VintageNetWizard.APMode do
   def exit_ap_mode(ifname, networks) do
     configuration = VintageNet.get_configuration(ifname)
 
+    result = File.read("/root/config_wifi.txt")
+
+    ipv4 = case result do
+      {:ok, binary} -> if binary != "" do
+        {:ok, decoded_map} = Jason.decode(binary)
+        case decoded_map["method"] do
+          "dhcp" ->
+            %{method: :dhcp}
+          "static" -> %{
+            method: String.to_existing_atom(decoded_map["method"]),
+            address: decoded_map["address"],
+            prefix_length: 24,
+            netmask: decoded_map["netmask"],
+            gateway: decoded_map["gateway"],
+            name_servers: decoded_map["name_servers"]
+        }
+      end
+      else
+        %{method: :dhcp}
+      end
+      {:error, _posix} ->
+        %{method: :dhcp}
+    end
+
     no_ap_mode =
       configuration
-      |> Map.put(:ipv4, %{method: :dhcp})
+      |> Map.put(:ipv4, ipv4)
       |> Map.put(:vintage_net_wifi, %{networks: networks})
       |> Map.delete(:dhcpd)
       |> Map.delete(:dnsd)
@@ -68,6 +92,7 @@ defmodule VintageNetWizard.APMode do
           %{
             mode: :ap,
             ssid: ssid,
+            frequency: 5240,
             key_mgmt: :none
           }
         ]

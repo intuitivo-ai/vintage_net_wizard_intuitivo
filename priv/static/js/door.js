@@ -38,17 +38,18 @@
 
   getLockType();
 
-  getNtp();
+  getNtpApn();
+  getInternetSharingConfig();
 
-  getApn();
+  initStream();
 
-  setTimeout(() => initStream(), 100);
+  //setTimeout(() => initStream(), 100);
 
-  setTimeout(() => changeVideo("0", 1), 5000);
+  //setTimeout(() => changeVideo("0", 1), 5000);
 
-  setTimeout(() => changeVideo("1", 1), 5000);
+  //setTimeout(() => changeVideo("1", 1), 5000);
 
-  setTimeout(() => changeVideo("2", 1), 5000);
+  //setTimeout(() => changeVideo("2", 1), 5000);
 
   // Call the function on page load to ensure the correct fields are displayed
   window.onload = toggleFields;
@@ -148,7 +149,7 @@
     fetch("/api/v1/door")
       .then((resp) => resp.json())
       .then((state) => {
-        doorState.textContent = state.door;
+        doorState.textContent = state.status;
       });
   }
 
@@ -156,16 +157,14 @@
     fetch("/api/v1/lock_type")
       .then((resp) => resp.json())
       .then((state) => {
-        LockType.textContent = state.lock_type;
+        LockType.textContent = state.type;
 
-        if (state.lock_type === "imbera") {
+        if (state.type === "imbera") {
           imbera.style.display = "block"; // Mostrar el div
           divNama.style.display = "block"; // Mostrar el div
           divClear.style.display = "block"; // Mostrar el div
-          getImberaInit();
           getImbera();
           setInterval(getImbera, 1000);
-          setInterval(getImberaInit, 12000);
         } else {
           imbera.style.display = "none"; // Ocultar el div
           divNama.style.display = "none"; // Ocultar el div
@@ -178,64 +177,71 @@
     fetch("/api/v1/status_lock")
       .then((resp) => resp.json())
       .then((state) => {
-        LockState.textContent = state.lock;
+        LockState.textContent = state.status;
+        stateImbera.textContent = state.isWorking;
       });
   }
 
-  function getNtp() {
-    fetch("/api/v1/get_ntp")
+  function getNtpApn() {
+    fetch("/api/v1/get_ntp_apn")
       .then((resp) => resp.json())
       .then((state) => {
+        const mobileNetwork = state.mobileNetwork;
         NTP.value = state.ntp;
+        APN.value = mobileNetwork.apn;
       });
   }
 
-  function getApn() {
-    fetch("/api/v1/get_apn")
+  // Obtener la configuración actual de compartir internet
+  function getInternetSharingConfig() {
+    fetch("/api/v1/get_internet_sharing")
       .then((resp) => resp.json())
       .then((state) => {
-        APN.value = state.apn;
+        const internetSelect = document.getElementById("internet_select");
+        if (internetSelect) {
+          const sharingMode = state.mode;
+          // Si el modo es vacío o "disabled", seleccionar la opción "disabled"
+          if (!sharingMode || sharingMode === "" || sharingMode === "disabled") {
+            internetSelect.value = "disabled";
+          } else {
+            // De lo contrario, seleccionar la opción correspondiente
+            internetSelect.value = sharingMode;
+          }
+          
+          // Disparar el evento change para activar el código que muestra/oculta las credenciales WiFi
+          const event = new Event("change");
+          internetSelect.dispatchEvent(event);
+        }
+      })
+      .catch((error) => {
+        console.error("Error getting internet sharing config:", error);
+        // En caso de error, seleccionar "disabled" por defecto
+        const internetSelect = document.getElementById("internet_select");
+        if (internetSelect) {
+          internetSelect.value = "disabled";
+        }
       });
   }
 
   function getImbera() {
-    fetch("/api/v1/state_imbera")
+    fetch("/api/v1/get_imbera_all")
       .then((resp) => resp.json())
       .then((state) => {
-        stateImbera.textContent = state.state_imbera;
-      });
-    fetch("/api/v1/state_nama")
-      .then((resp) => resp.json())
-      .then((state) => {
-        namaImbera.textContent = state.state_nama;
-      });
-    fetch("/api/v1/state_profile")
-      .then((resp) => resp.json())
-      .then((state) => {
-        profileImbera.textContent = state.state_profile;
-      });
-    fetch("/api/v1/get_temp")
-      .then((resp) => resp.json())
-      .then((state) => {
-        tempImbera.textContent = state.temp + " °C";
-      });
-    fetch("/api/v1/get_version")
-      .then((resp) => resp.json())
-      .then((state) => {
-        versionImbera.textContent = state.version;
-      });
-  }
 
-  function getImberaInit() {
-    fetch("/api/v1/state_profile")
-      .then((resp) => resp.json())
-      .then((state) => {
-        profileImbera.textContent = state.state_profile;
-        if (state.state_profile == 1) {
+
+        const nama = state.nama;
+
+        namaImbera.textContent = nama.enabled;
+        profileImbera.textContent = nama.profile;
+        tempImbera.textContent = nama.temperature + " °C";
+        versionImbera.textContent = nama.version;
+
+        if (nama.profile == 1) {
           LockNama.checked = false;
-        } else if (state.state_profile == 2) {
+        } else if (nama.profile == 2) {
           LockNama.checked = true;
         }
+
       });
   }
 
@@ -276,5 +282,73 @@
       },
       body: JSON.stringify({ value: target.checked }),
     });
+  });
+
+  // WiFi Credentials and Reboot Functionality
+  document.addEventListener("DOMContentLoaded", function() {
+    // Selector de internet para mostrar/ocultar credenciales WiFi
+    const internetSelect = document.getElementById("internet_select");
+    const wifiCredentialsDiv = document.getElementById("wifi_credentials");
+    const wifiSsidSpan = document.getElementById("wifi_ssid");
+    const wifiPasswordSpan = document.getElementById("wifi_password");
+    const rebootButton = document.getElementById("reboot_button");
+    
+    if (internetSelect) {
+      // Mostrar u ocultar div según selección
+      internetSelect.addEventListener("change", function() {
+        const selectedValue = internetSelect.value;
+        if (selectedValue === "wwan0_to_wlan0" || selectedValue === "eth0_to_wlan0") {
+          fetch("/api/v1/wifi_credentials")
+            .then(response => response.json())
+            .then(data => {
+              wifiSsidSpan.textContent = data.ssid || "Not available";
+              wifiPasswordSpan.textContent = data.password || "Not available";
+              wifiCredentialsDiv.style.display = "block";
+            })
+            .catch(error => {
+              console.error("Error fetching WiFi credentials:", error);
+              wifiCredentialsDiv.style.display = "none";
+            });
+        } else {
+          wifiCredentialsDiv.style.display = "none";
+        }
+      });
+      
+      // Comprobar el valor inicial al cargar la página
+      if (internetSelect.value === "wwan0_to_wlan0" || internetSelect.value === "eth0_to_wlan0") {
+        fetch("/api/v1/wifi_credentials")
+          .then(response => response.json())
+          .then(data => {
+            wifiSsidSpan.textContent = data.ssid || "Not available";
+            wifiPasswordSpan.textContent = data.password || "Not available";
+            wifiCredentialsDiv.style.display = "block";
+          })
+          .catch(error => {
+            console.error("Error fetching WiFi credentials:", error);
+          });
+      }
+    }
+    
+    // Configurar el botón de reinicio
+    if (rebootButton) {
+      rebootButton.addEventListener("click", function() {
+        if (confirm("Are you sure you want to reboot the device?")) {
+          fetch("/api/v1/reboot", {
+            method: "POST"
+          })
+          .then(response => {
+            if (response.ok) {
+              alert("Device is rebooting...");
+            } else {
+              alert("Failed to reboot the device.");
+            }
+          })
+          .catch(error => {
+            console.error("Error rebooting device:", error);
+            alert("Error: Could not reboot the device.");
+          });
+        }
+      });
+    }
   });
 })();

@@ -9,6 +9,8 @@ defmodule VintageNetWizard.Backend.Default do
 
   alias VintageNetWizard.{APMode, WiFiConfiguration}
 
+  require Logger
+
   @impl VintageNetWizard.Backend
   def init(ifname, ap_ifname) do
     # ["interface", ifname, "connection"] info never received when uap0 and wlan0
@@ -120,6 +122,7 @@ defmodule VintageNetWizard.Backend.Default do
     # wifi runs into a race condition. So, we wait a little
     # before trying to re-initialize the interface.
     Process.sleep(4_000)
+    ok = APMode.into_ap_mode(ap_ifname)
 
     data =
       data
@@ -147,9 +150,31 @@ defmodule VintageNetWizard.Backend.Default do
     end
   end
 
+  def handle_info(:reboot_device, state) do
+
+    Nerves.Runtime.reboot()
+
+    {:noreply, state}
+  end
+
+  def handle_info(:init_stream_gst, state) do
+
+    #In2Firmware.Services.Operations.ReviewHW.init_cameras()
+
+    {:noreply, state}
+  end
+
+  def handle_info(:re_init_stream_gst, state) do
+
+    #In2Firmware.Services.Operations.re_init_cameras()
+
+    {:noreply, state}
+  end
+
   def handle_info(_info, state) do
     {:noreply, state}
   end
+
 
   defp apply_configurations(wifi_configurations, state) do
 
@@ -159,7 +184,11 @@ defmodule VintageNetWizard.Backend.Default do
       {:ok, binary} -> if binary != "" do
         {:ok, decoded_map} = Jason.decode(binary)
         case decoded_map["method"] do
-          "dhcp" -> VintageNet.configure(state.ifname, %{
+          "dhcp" ->
+
+            Logger.info("API_V2_CONFIGURATION_WIFI_STATIC_REQUEST is DHCP")
+
+            VintageNet.configure(state.ifname, %{
             type: VintageNetWiFi,
             vintage_net_wifi: %{
               networks: wifi_configurations
@@ -167,12 +196,16 @@ defmodule VintageNetWizard.Backend.Default do
             ipv4: %{method: :dhcp}
           })
           "static" -> map_with_atom = %{
-            method: String.to_atom(decoded_map["method"]),
+            method: String.to_existing_atom(decoded_map["method"]),
             address: decoded_map["address"],
+            prefix_length: 24,
             netmask: decoded_map["netmask"],
             gateway: decoded_map["gateway"],
             name_servers: decoded_map["name_servers"]
         }
+
+        Logger.info("API_V2_CONFIGURATION_WIFI_STATIC_REQUEST is #{inspect(map_with_atom)} #{inspect(wifi_configurations)}")
+
         VintageNet.configure(state.ifname, %{
           type: VintageNetWiFi,
           vintage_net_wifi: %{
@@ -183,6 +216,9 @@ defmodule VintageNetWizard.Backend.Default do
         end
 
       else
+
+        Logger.info("API_V2_CONFIGURATION_WIFI_STATIC_REQUEST is DHCP2")
+
         VintageNet.configure(state.ifname, %{
           type: VintageNetWiFi,
           vintage_net_wifi: %{
@@ -191,7 +227,11 @@ defmodule VintageNetWizard.Backend.Default do
           ipv4: %{method: :dhcp}
         })
       end
-      {:error, _posix} -> VintageNet.configure(state.ifname, %{
+      {:error, _posix} ->
+
+        Logger.info("API_V2_CONFIGURATION_WIFI_STATIC_REQUEST is DHCP3")
+
+        VintageNet.configure(state.ifname, %{
         type: VintageNetWiFi,
         vintage_net_wifi: %{
           networks: wifi_configurations

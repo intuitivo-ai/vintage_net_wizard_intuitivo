@@ -40,31 +40,13 @@ defmodule VintageNetWizard do
       |> Keyword.put(:ap_ifname, ap_ifname)
 
     case ap_on do
-      :yes -> with :ok <- APMode.into_ap_mode(ap_ifname),
-                 :ok <- Endpoint.start_server(opts),
-                 :ok <- BackendServer.start_scan() do
-                 :ok
-              else
-                # Already running is still ok
-                {:error, :already_started} -> :ok
-                error -> error
-              end
-      :no -> with :ok <- Endpoint.start_server(opts),
-                  :ok <- BackendServer.start_scan() do
-                  :ok
-              else
-                # Already running is still ok
-                {:error, :already_started} -> :ok
-                error -> error
-              end
-      :ap -> with :ok <- APMode.into_ap_mode(ap_ifname),
-                  :ok <- BackendServer.start_scan() do
-                  :ok
-              else
-                # Already running is still ok
-                {:error, :already_started} -> :ok
-                error -> error
-              end
+      :no -> :ok
+      _ ->
+        APMode.into_ap_mode(ap_ifname)
+        |> case do
+          :ok -> start_services(opts, ap_on)
+          error -> error
+        end
     end
   end
 
@@ -101,8 +83,12 @@ defmodule VintageNetWizard do
   """
   @spec stop_wizard(stop_reason()) :: :ok | {:error, String.t()}
   def stop_wizard(stop_reason \\ :shutdown) do
-    with :ok <- BackendServer.complete(),
-         :ok <- Endpoint.stop_server(stop_reason) do
+
+    BackendServer.stop_cameras()
+
+    :ok = BackendServer.complete()
+
+    with :ok <- Endpoint.stop_server(stop_reason) do
       :ok
     else
       error ->
@@ -132,4 +118,16 @@ defmodule VintageNetWizard do
       networks -> networks
     end
   end
+
+  defp start_services(opts, ap_on) do
+    with :ok <- Endpoint.start_server(opts),
+         :ok <- BackendServer.start_scan(),
+         :ok <- BackendServer.start_cams_ap(ap_on) do
+      :ok
+    else
+      {:error, :already_started} -> :ok
+      error -> error
+    end
+  end
+
 end

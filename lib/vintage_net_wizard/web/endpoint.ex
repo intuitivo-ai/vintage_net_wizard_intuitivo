@@ -47,8 +47,8 @@ defmodule VintageNetWizard.Web.Endpoint do
           :ok | {:error, :already_started | :no_keyfile | :no_certfile}
   def start_server(opts \\ []) do
     use_ssl? = Keyword.has_key?(opts, :ssl)
-    use_captive_portal? = Application.get_env(:vintage_net_wizard, :captive_portal, true)
-    inactivity_timeout = Application.get_env(:vintage_net_wizard, :inactivity_timeout, :infinity)
+    use_captive_portal? = false
+    inactivity_timeout = Application.get_env(:vintage_net_wizard, :inactivity_timeout, 15)
     callbacks = Keyword.take(opts, [:on_exit])
 
     with spec <- maybe_use_ssl(use_ssl?, opts),

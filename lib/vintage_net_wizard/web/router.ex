@@ -6,9 +6,9 @@ defmodule VintageNetWizard.Web.Router do
 
   use Plug.Router
   use Plug.Debugger, otp_app: :vintage_net_wizard
-  import Logger
+  require Logger
 
-  plug :auth
+  #plug :auth
 
   alias VintageNetWizard.{
     BackendServer,
@@ -255,20 +255,21 @@ defmodule VintageNetWizard.Web.Router do
   end
 
   get "/complete" do
-    #:ok = BackendServer.complete()
+    :ok = BackendServer.complete()
 
     _ =
       Task.Supervisor.start_child(VintageNetWizard.TaskSupervisor, fn ->
         # We don't want to stop the server before we
         # send the response back.
         :timer.sleep(3000)
-        #Endpoint.stop_server(:shutdown)
+        Endpoint.stop_server(:shutdown)
       end)
 
     render_page(conn, "complete.html", opts)
   end
 
-  forward("/api/v1", to: VintageNetWizard.Web.Api)
+  forward("/api/v1", to: VintageNetWizard.Web.ApiV1)
+  forward("/api/v2", to: VintageNetWizard.Web.ApiV2)
 
   match _ do
     send_resp(conn, 404, "oops")

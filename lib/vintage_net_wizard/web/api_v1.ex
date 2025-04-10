@@ -1,6 +1,6 @@
-defmodule VintageNetWizard.Web.Api do
+defmodule VintageNetWizard.Web.ApiV1 do
   @moduledoc false
-  import Logger
+  require Logger
 
   use Plug.Router
 
@@ -16,43 +16,62 @@ defmodule VintageNetWizard.Web.Api do
   plug(:dispatch)
 
   get "/door" do
-    send_json(conn, 200, Jason.encode!(BackendServer.get_door()))
+
+    door_status = BackendServer.get_door()
+
+    response = %{
+      status: door_status["door"],
+      lastChanged: door_status["timestamp"]
+    }
+
+    send_json(conn, 200, Jason.encode!(response))
   end
 
   get "/status_lock" do
-    send_json(conn, 200, Jason.encode!(BackendServer.get_lock()))
+
+    lock_status = BackendServer.get_lock()
+
+    response = %{
+      status: lock_status.lock || "locked",
+      isWorking: lock_status.working
+    }
+
+    send_json(conn, 200, Jason.encode!(response))
   end
 
-  get "/state_imbera" do
-    send_json(conn, 200, Jason.encode!(BackendServer.get_state_imbera()))
+  get "/get_ntp_apn" do
+    config = BackendServer.get_board_config()
+
+    send_json(conn, 200, Jason.encode!(config))
   end
 
-  get "/get_ntp" do
-    send_json(conn, 200, Jason.encode!(BackendServer.get_ntp()))
+  get "/get_imbera_all" do
+    config = BackendServer.get_board_config()
+
+    send_json(conn, 200, Jason.encode!(config))
   end
 
-  get "/get_apn" do
-    send_json(conn, 200, Jason.encode!(BackendServer.get_apn()))
-  end
+  get "/get_internet_sharing" do
+    # Usar la configuración de board_config que ya tiene el valor de internet_select
+    config = BackendServer.get_board_config()
 
-  get "/state_nama" do
-    send_json(conn, 200, Jason.encode!(BackendServer.get_state_nama()))
-  end
+    # Preparar la respuesta usando el valor de hotspotOutput que contiene el valor de internet_select
+    response = %{
+      mode: config.hotspotOutput || "disabled"
+    }
 
-  get "/state_profile" do
-    send_json(conn, 200, Jason.encode!(BackendServer.get_state_profile()))
-  end
-
-  get "/get_temp" do
-    send_json(conn, 200, Jason.encode!(BackendServer.get_temp()))
-  end
-
-  get "/get_version" do
-    send_json(conn, 200, Jason.encode!(BackendServer.get_version()))
+    send_json(conn, 200, Jason.encode!(response))
   end
 
   get "/lock_type" do
-    send_json(conn, 200, Jason.encode!(BackendServer.get_lock_type()))
+
+    lock_type = BackendServer.get_lock_type()
+
+    response = %{
+      type: lock_type["lock_type"] || "retrofit"
+    }
+
+    send_json(conn, 200, Jason.encode!(response))
   end
 
   get "/configuration/status" do
@@ -72,7 +91,7 @@ defmodule VintageNetWizard.Web.Api do
 
   put "/lock" do
 
-    BackendServer.change_lock(true)
+    BackendServer.change_lock(false)
 
     send_json(conn, 204, "")
   end
@@ -105,7 +124,7 @@ defmodule VintageNetWizard.Web.Api do
   end
 
   get "/complete" do
-    #:ok = BackendServer.complete()
+    :ok = BackendServer.complete()
 
     _ =
       Task.Supervisor.start_child(VintageNetWizard.TaskSupervisor, fn ->
@@ -128,14 +147,14 @@ defmodule VintageNetWizard.Web.Api do
 
   get "/init_cams" do
 
-    BackendServer.set_init_cam(true)
+    BackendServer.init_cameras()
 
     send_json(conn, 200, Jason.encode!(%{"state" => "ok"}))
   end
 
   get "/stop_cams" do
 
-    BackendServer.set_stop_cam(true)
+    #BackendServer.stop_cameras()
 
     send_json(conn, 200, Jason.encode!(%{"state" => "ok"}))
   end
@@ -152,6 +171,39 @@ defmodule VintageNetWizard.Web.Api do
 
   end
 
+  post "/reboot" do
+    # Ejecutar la función de reinicio
+    BackendServer.reboot()
+
+    # Enviar respuesta OK
+    send_json(conn, 200, %{status: "ok", message: "Rebooting device..."} |> Jason.encode!())
+  end
+
+  get "/wifi_credentials" do
+    # Leer el archivo de credenciales WiFi
+    result = case File.read("/root/.secret_wifi.txt") do
+      {:ok, content} ->
+        # Intenta decodificar el contenido como JSON
+        case Jason.decode(content) do
+          {:ok, json_data} ->
+            # Si es JSON válido, usa directamente los campos ssid y password
+            %{
+              ssid: json_data["ssid"] || "",
+              password: json_data["password"] || ""
+            }
+
+          {:error, _} ->
+            %{ssid: "", password: ""}
+        end
+
+      {:error, _reason} ->
+        # Si hay un error al leer el archivo, devolver valores vacíos
+        %{ssid: "", password: ""}
+    end
+
+    # Enviar respuesta JSON con las credenciales
+    send_json(conn, 200, Jason.encode!(result))
+  end
 
   post "/apply" do
     case BackendServer.apply() do
