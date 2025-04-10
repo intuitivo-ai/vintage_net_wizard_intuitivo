@@ -8,19 +8,20 @@ defmodule VintageNetWizard.Web.Router do
   use Plug.Debugger, otp_app: :vintage_net_wizard
   require Logger
 
-  #plug :auth
-
   alias VintageNetWizard.{
     BackendServer,
     Web.Endpoint,
     WiFiConfiguration
   }
 
+  # Create a pipeline for authenticated routes
+  defp authenticate(conn, _opts) do
+    conn |> VintageNetWizard.Plugs.ApiKeyAuth.call([])
+  end
+
   plug(Plug.Static, from: {:vintage_net_wizard, "priv/static"}, at: "/")
   plug(Plug.Parsers, parsers: [Plug.Parsers.URLENCODED, :json], json_decoder: Jason)
-  # This route is polled by the front end to update its list of access points.
-  # This can mean the user could potentially have the page open without knowing
-  # it just polling this endpoint but still be inactive.
+  # Esta ruta es consultada por el frontend para actualizar su lista de puntos de acceso.
   plug(VintageNetWizard.Plugs.Activity, excluding: ["/api/v1/access_points"])
   plug(:match)
   plug(:dispatch, builder_opts())
@@ -37,35 +38,25 @@ defmodule VintageNetWizard.Web.Router do
     Regex.match?(@ip_regex, ip)
   end
 
-  ## Plug Auth usgin Plug.BasicAuth custom
-  defp auth(conn, _opts) do
-    with {user, pass} <- Plug.BasicAuth.parse_basic_auth(conn) do
-      ##process to authorize
-      username = Application.get_env(:in2_firmware, :username)
-      password = Application.get_env(:in2_firmware, :password)
-      #Logger.info("Authorizing #{user} with #{pass}")
-      if username == user and password == pass do
-        assign(conn, :current_user, :admin)
-      else
-        conn |> Plug.BasicAuth.request_basic_auth() |> halt()
-      end
-    else
-      _ -> conn |> Plug.BasicAuth.request_basic_auth() |> halt()
-    end
-  end
-
+  # Protect specific routes with authentication
+  # For example, to protect the root route:
   get "/" do
-    case BackendServer.configurations() do
-      [] ->
-        redirect(conn, "/networks")
+    conn = authenticate(conn, [])
+    if conn.halted do
+      conn
+    else
+      case BackendServer.configurations() do
+        [] ->
+          redirect(conn, "/networks")
 
-      configs ->
-        render_page(conn, "index.html", opts,
-          configs: configs,
-          configuration_status: configuration_status_details(),
-          format_security: &WiFiConfiguration.security_name/1,
-          get_key_mgmt: &WiFiConfiguration.get_key_mgmt/1
-        )
+        configs ->
+          render_page(conn, "index.html", opts,
+            configs: configs,
+            configuration_status: configuration_status_details(),
+            format_security: &WiFiConfiguration.security_name/1,
+            get_key_mgmt: &WiFiConfiguration.get_key_mgmt/1
+          )
+      end
     end
   end
 
@@ -268,8 +259,62 @@ defmodule VintageNetWizard.Web.Router do
     render_page(conn, "complete.html", opts)
   end
 
-  forward("/api/v1", to: VintageNetWizard.Web.ApiV1)
-  forward("/api/v2", to: VintageNetWizard.Web.ApiV2)
+  # Handle API routes with authentication
+  match "/api/v1/*path" do
+    # First authenticate
+    conn = VintageNetWizard.Plugs.ApiKeyAuth.call(conn, [])
+
+    if conn.halted do
+      # The API Key auth plug already sent a response
+      conn
+    else
+      # Get the path segments from the path param
+      path_segments = conn.path_params["path"] || []
+
+      # Create a new path string
+      new_path = "/" <> Enum.join(path_segments, "/")
+
+      # Set up the connection for the API module
+      conn = %{conn |
+        path_info: path_segments,
+        request_path: new_path,
+        params: Map.drop(conn.params, ["path"]),
+        path_params: Map.drop(conn.path_params, ["path"])
+      }
+
+      # Forward to the API module
+      opts = VintageNetWizard.Web.ApiV1.init([])
+      VintageNetWizard.Web.ApiV1.call(conn, opts)
+    end
+  end
+
+  match "/api/v2/*path" do
+    # First authenticate
+    conn = VintageNetWizard.Plugs.ApiKeyAuth.call(conn, [])
+
+    if conn.halted do
+      # The API Key auth plug already sent a response
+      conn
+    else
+      # Get the path segments from the path param
+      path_segments = conn.path_params["path"] || []
+
+      # Create a new path string
+      new_path = "/" <> Enum.join(path_segments, "/")
+
+      # Set up the connection for the API module
+      conn = %{conn |
+        path_info: path_segments,
+        request_path: new_path,
+        params: Map.drop(conn.params, ["path"]),
+        path_params: Map.drop(conn.path_params, ["path"])
+      }
+
+      # Forward to the API module
+      opts = VintageNetWizard.Web.ApiV2.init([])
+      VintageNetWizard.Web.ApiV2.call(conn, opts)
+    end
+  end
 
   match _ do
     send_resp(conn, 404, "oops")

@@ -238,6 +238,39 @@ defmodule VintageNetWizard.Web.ApiV1 do
     send_json(conn, 200, "")
   end
 
+  get "/test_auth" do
+    # This route should only be accessible if authentication passed
+    # Get claims from conn.assigns if they exist
+    claims = conn.assigns[:jwt_claims] || %{}
+
+    device_info = BackendServer.device_info()
+
+    # Get system MAC address
+    system_mac = case Enum.find(device_info, fn {label, _} -> label == "WiFi Address" end) do
+      {_, mac} when is_binary(mac) -> mac
+      _ -> "unknown"
+    end
+
+    # Send response with authentication info
+    send_json(conn, 200, Jason.encode!(%{
+      authenticated: true,
+      token_mac: claims["mac_address"],
+      system_mac: system_mac,
+      path: "api/v1/test_auth",
+      claims: claims
+    }))
+  end
+
+  # Catch-all route for non-existent endpoints
+  match _ do
+    Logger.warn("API v1: Requested non-existent endpoint: #{inspect(conn.request_path)}")
+    send_json(conn, 404, Jason.encode!(%{
+      error: "not_found",
+      message: "The requested API endpoint does not exist",
+      path: conn.request_path
+    }))
+  end
+
   defp send_json(conn, status_code, json) do
     conn
     |> put_resp_content_type("application/json")
