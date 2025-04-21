@@ -1023,15 +1023,7 @@ defmodule VintageNetWizard.BackendServer do
 
 
   def get_cameras() do
-    device_ip = VintageNet.get(["interface", "wlan0", "addresses"])
-                |> Enum.find(fn addr -> addr.family == :inet end)
-                |> case do
-                  nil -> "localhost"
-                  addr -> addr.address
-                         |> Tuple.to_list()
-                         |> Enum.join(".")
-                         |> to_string()
-                end
+    device_ip = Application.get_env(:vintage_net_wizard, :dns_name, "setup.firmware.intuitivo.com")
 
     [
        #%{
@@ -1058,21 +1050,21 @@ defmodule VintageNetWizard.BackendServer do
         name: "Upper Central Camera",
         status: "online",
         host: device_ip,
-        port: 6000
+        port: 11000
       },
       %{
         id: "cam1",
         name: "Upper Lateral Camera",
         status: "online",
         host: device_ip,
-        port: 6001
+        port: 11001
       },
       %{
         id: "cam2",
         name: "Lateral Retractable Camera",
         status: "online",
         host: device_ip,
-        port: 6002
+        port: 11002
       }
 
     ]

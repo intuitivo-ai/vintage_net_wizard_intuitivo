@@ -125,7 +125,7 @@ defmodule VintageNetWizard.Web.ApiV2 do
   post "/cameras/initialize" do
     #BackendServer.init_cameras()  # Using existing function
 
-    In2Firmware.Services.Operations.re_start_tcp()
+    In2Firmware.Services.Operations.re_init_http()
 
     response = %{
       status: "success",
