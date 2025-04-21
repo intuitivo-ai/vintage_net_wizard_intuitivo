@@ -1023,7 +1023,7 @@ defmodule VintageNetWizard.BackendServer do
 
 
   def get_cameras() do
-    device_ip = Application.get_env(:vintage_net_wizard, :dns_name, "setup.firmware.intuitivo.com")
+    device_ip = "setup.firmware.dev.intuitivo.com"
 
     [
        #%{
