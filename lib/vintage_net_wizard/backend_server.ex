@@ -790,13 +790,25 @@ defmodule VintageNetWizard.BackendServer do
         case result do
           {:ok, interface} ->
             File.write("/root/internet.txt", "", [:write])
+            ap_credentials = get_ap_credentials()
+            if ap_credentials.ssid != "" and ap_credentials.password != "" do
+              delete_configuration(ap_credentials.ssid)
+            end
             In2Firmware.check_sharing_connection(interface)
           {:error, _posix} ->
             File.write("/root/internet.txt", "", [:write])
+            ap_credentials = get_ap_credentials()
+            if ap_credentials.ssid != "" and ap_credentials.password != "" do
+              delete_configuration(ap_credentials.ssid)
+            end
             In2Firmware.check_sharing_connection("")
         end
       else
         File.write("/root/internet.txt", "", [:write])
+        ap_credentials = get_ap_credentials()
+        if ap_credentials.ssid != "" and ap_credentials.password != "" do
+          delete_configuration(ap_credentials.ssid)
+        end
         In2Firmware.check_sharing_connection("")
       end
     end
@@ -1109,4 +1121,12 @@ defmodule VintageNetWizard.BackendServer do
     File.write("/root/.secret_wifi.txt", json, [:write])
   end
 
+  def get_ap_credentials() do
+    result = File.read("/root/.secret_wifi.txt")
+
+    case result do
+      {:ok, binary} -> Jason.decode!(binary)
+      {:error, _posix} -> %{ssid: "", password: ""}
+    end
+  end
 end
