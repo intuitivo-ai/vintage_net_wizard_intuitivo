@@ -1125,7 +1125,15 @@ defmodule VintageNetWizard.BackendServer do
     result = File.read("/root/.secret_wifi.txt")
 
     case result do
-      {:ok, binary} -> Jason.decode!(binary)
+      {:ok, binary} ->
+        credentials = Jason.decode!(binary)
+        # Convert string keys to atoms
+        %{
+          ssid: credentials["ssid"] || "",
+          password: credentials["password"] || "",
+          key_mgmt: credentials["key_mgmt"] || "wpa2-psk",
+          generated_at: credentials["generated_at"] || ""
+        }
       {:error, _posix} -> %{ssid: "", password: ""}
     end
   end
