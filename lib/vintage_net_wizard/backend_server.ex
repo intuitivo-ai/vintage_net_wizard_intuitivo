@@ -771,8 +771,8 @@ defmodule VintageNetWizard.BackendServer do
   end
 
   @impl GenServer
-  def handle_cast({:save_internet, internet}, state) do
-    if internet != "" and internet != "disabled" do
+  def handle_cast({:save_internet, internet}, %State{configurations: configs} = state) do
+    new_state = if internet != "" and internet != "disabled" do
       File.write("/root/internet.txt", internet, [:write])
       if internet == "wwan0_to_wlan0" or internet == "eth0_to_wlan0" do
         # Generate random SSID and password for AP mode
@@ -784,36 +784,47 @@ defmodule VintageNetWizard.BackendServer do
       else
         In2Firmware.check_sharing_connection("")
       end
+      state
     else
-      if File.exists?("/root/internet.txt") do
+      updated_state = if File.exists?("/root/internet.txt") do
         result = File.read("/root/internet.txt")
         case result do
           {:ok, interface} ->
             File.write("/root/internet.txt", "", [:write])
+            In2Firmware.check_sharing_connection(interface)
             ap_credentials = get_ap_credentials()
             if ap_credentials.ssid != "" and ap_credentials.password != "" do
-              delete_configuration(ap_credentials.ssid)
+              # Modify state directly
+              %{state | configurations: Map.delete(configs, ap_credentials.ssid)}
+            else
+              state
             end
-            In2Firmware.check_sharing_connection(interface)
           {:error, _posix} ->
             File.write("/root/internet.txt", "", [:write])
+            In2Firmware.check_sharing_connection("")
             ap_credentials = get_ap_credentials()
             if ap_credentials.ssid != "" and ap_credentials.password != "" do
-              delete_configuration(ap_credentials.ssid)
+              # Modify state directly
+              %{state | configurations: Map.delete(configs, ap_credentials.ssid)}
+            else
+              state
             end
-            In2Firmware.check_sharing_connection("")
         end
       else
         File.write("/root/internet.txt", "", [:write])
+        In2Firmware.check_sharing_connection("")
         ap_credentials = get_ap_credentials()
         if ap_credentials.ssid != "" and ap_credentials.password != "" do
-          delete_configuration(ap_credentials.ssid)
+          # Modify state directly
+          %{state | configurations: Map.delete(configs, ap_credentials.ssid)}
+        else
+          state
         end
-        In2Firmware.check_sharing_connection("")
       end
+      updated_state
     end
 
-    {:noreply, state}
+    {:noreply, new_state}
   end
 
   @impl GenServer
