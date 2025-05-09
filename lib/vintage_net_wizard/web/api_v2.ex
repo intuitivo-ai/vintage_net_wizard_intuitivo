@@ -569,4 +569,16 @@ defmodule VintageNetWizard.Web.ApiV2 do
     |> send_resp(204, "")
   end
 
+  # Catch-all route for non-existent endpoints
+  match _ do
+    Logger.warn("API v2: Requested non-existent endpoint: #{inspect(conn.request_path)}")
+    send_json(conn, 404, %{
+      error: "not_found",
+      code: "ENDPOINT_NOT_FOUND",
+      message: "The requested API endpoint does not exist",
+      path: conn.request_path,
+      timestamp: DateTime.utc_now() |> DateTime.to_iso8601()
+    })
+  end
+
 end
