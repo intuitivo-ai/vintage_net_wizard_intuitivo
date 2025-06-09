@@ -460,29 +460,30 @@ defmodule VintageNetWizard.Web.ApiV2 do
       _ -> :ok
     end
 
-    # When no networks are configured, use complete() and then activate AP mode
-    # to ensure VintageNet disconnects and then returns to AP mode for setup
+    # When no networks are configured, use apply() with a fake configuration that will fail
+    # This ensures the timeout timer is activated and will return to AP mode automatically
     current_configs = BackendServer.configurations()
     if current_configs == [] do
-      Logger.info("API_V2_NO_WIFI_NETWORKS_COMPLETING_DISCONNECTION")
-      case BackendServer.complete() do
-        :ok ->
-          Logger.info("API_V2_WIFI_DISCONNECTION_COMPLETED_SUCCESSFULLY")
+      Logger.info("API_V2_NO_WIFI_NETWORKS_CREATING_FAKE_CONFIG_TO_TRIGGER_TIMEOUT")
 
-          # After completing with no networks, manually trigger AP mode
-          # This simulates what the configuration timeout would do
-          Logger.info("API_V2_ACTIVATING_AP_MODE_AFTER_COMPLETE")
-          ap_ifname = BackendServer.get_ap_ifname()
-          case VintageNetWizard.APMode.into_ap_mode(ap_ifname) do
-            :ok ->
-              Logger.info("API_V2_AP_MODE_ACTIVATED_SUCCESSFULLY")
-              :ok
-            {:error, reason} ->
-              Logger.error("API_V2_FAILED_TO_ACTIVATE_AP_MODE: #{inspect(reason)}")
-              {:error, reason}
-          end
+      # Create a fake configuration that will definitely fail to connect
+      # This triggers the apply() -> timeout -> back to AP mode flow
+      fake_config = %{
+        ssid: "__INTUITIVO_FAKE_NETWORK_WILL_FAIL__",
+        mode: :infrastructure,
+        key_mgmt: :none
+      }
+
+      # Save the fake configuration temporarily
+      BackendServer.save(fake_config)
+
+      # Apply it - this will start the timeout timer
+      case BackendServer.apply() do
+        :ok ->
+          Logger.info("API_V2_FAKE_CONFIG_APPLIED_TIMEOUT_TIMER_ACTIVATED")
+          :ok
         {:error, reason} = error ->
-          Logger.error("API_V2_FAILED_TO_COMPLETE_WIFI_DISCONNECTION: #{inspect(reason)}")
+          Logger.error("API_V2_FAILED_TO_APPLY_FAKE_CONFIG: #{inspect(reason)}")
           error
       end
     else
