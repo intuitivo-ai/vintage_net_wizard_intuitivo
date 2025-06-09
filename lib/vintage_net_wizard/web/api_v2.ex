@@ -485,12 +485,31 @@ defmodule VintageNetWizard.Web.ApiV2 do
           BackendServer.delete_configuration(fake_config.ssid)
           # Also ensure empty list is saved to .psk_wifi.json file
           BackendServer.save_wifi_networks([])
+
+          # Clean up VintageNet configuration to prevent persistence of fake config
+          # Configure VintageNet with empty networks to overwrite the fake config
+          ap_ifname = BackendServer.get_ap_ifname()
+          VintageNet.configure(ap_ifname, %{
+            type: VintageNetWiFi,
+            vintage_net_wifi: %{networks: []},
+            ipv4: %{method: :dhcp}
+          })
+          Logger.info("API_V2_VINTAGE_NET_CLEANED_OF_FAKE_CONFIG")
           :ok
         {:error, reason} = error ->
           Logger.error("API_V2_FAILED_TO_APPLY_FAKE_CONFIG: #{inspect(reason)}")
           # Clean up fake config even on error
           BackendServer.delete_configuration(fake_config.ssid)
           BackendServer.save_wifi_networks([])
+
+          # Clean up VintageNet configuration even on error
+          ap_ifname = BackendServer.get_ap_ifname()
+          VintageNet.configure(ap_ifname, %{
+            type: VintageNetWiFi,
+            vintage_net_wifi: %{networks: []},
+            ipv4: %{method: :dhcp}
+          })
+          Logger.info("API_V2_VINTAGE_NET_CLEANED_OF_FAKE_CONFIG_AFTER_ERROR")
           error
       end
     else
