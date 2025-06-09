@@ -320,32 +320,28 @@ defmodule VintageNetWizard.BackendServer do
     GenServer.cast(__MODULE__, :init_cameras)
   end
 
-  @impl GenServer
-  def init([backend, ifname, opts]) do
-    device_info = Keyword.get(opts, :device_info, [])
+  @doc """
+  Get the WiFi networks configurations
+  """
+  @spec get_wifi_networks() :: list()
+  def get_wifi_networks() do
+    GenServer.call(__MODULE__, :get_wifi_networks)
+  end
 
-    configurations =
-      opts
-      |> Keyword.get(:configurations, [])
-      |> Enum.into(%{}, fn config -> {config.ssid, config} end)
+  @doc """
+  Get the AP interface name
+  """
+  @spec get_ap_ifname() :: String.t()
+  def get_ap_ifname() do
+    GenServer.call(__MODULE__, :get_ap_ifname)
+  end
 
-    ap_ifname = Keyword.fetch!(opts, :ap_ifname)
-
-    result = get_init_values()
-
-    {:ok,
-     %State{
-       configurations: configurations,
-       backend: backend,
-       # Scanning is done by ifname
-       backend_state: backend.init(ifname, ap_ifname),
-       device_info: device_info,
-       ifname: ifname,
-       ap_ifname: ap_ifname,
-       internet_select: result.internet_select,
-       apn: result.apn,
-       ntp: result.ntps
-     }}
+  @doc """
+  Get the complete state for debugging purposes
+  """
+  @spec get_configuration_state() :: State.t()
+  def get_configuration_state() do
+    GenServer.call(__MODULE__, :configuration_state)
   end
 
   @impl GenServer
@@ -1242,5 +1238,42 @@ defmodule VintageNetWizard.BackendServer do
         }
       {:error, _posix} -> %{ssid: "", password: ""}
     end
+  end
+
+  @impl GenServer
+  def init([backend, ifname, opts]) do
+    device_info = Keyword.get(opts, :device_info, [])
+
+    configurations =
+      opts
+      |> Keyword.get(:configurations, [])
+      |> Enum.into(%{}, fn config -> {config.ssid, config} end)
+
+    ap_ifname = Keyword.fetch!(opts, :ap_ifname)
+
+    result = get_init_values()
+
+    {:ok,
+     %State{
+       configurations: configurations,
+       backend: backend,
+       # Scanning is done by ifname
+       backend_state: backend.init(ifname, ap_ifname),
+       device_info: device_info,
+       ifname: ifname,
+       ap_ifname: ap_ifname,
+       internet_select: result.internet_select,
+       apn: result.apn,
+       ntp: result.ntps
+     }}
+  end
+
+  def handle_call(:get_wifi_networks, _from, state) do
+    wifi_networks = get_wifi_networks(state)
+    {:reply, wifi_networks, state}
+  end
+
+  def handle_call(:get_ap_ifname, _from, %State{ap_ifname: ap_ifname} = state) do
+    {:reply, ap_ifname, state}
   end
 end

@@ -460,15 +460,27 @@ defmodule VintageNetWizard.Web.ApiV2 do
       _ -> :ok
     end
 
-    # When no networks are configured, use complete() instead of apply()
-    # to ensure VintageNet actually disconnects from all networks
+    # When no networks are configured, use complete() and then activate AP mode
+    # to ensure VintageNet disconnects and then returns to AP mode for setup
     current_configs = BackendServer.configurations()
     if current_configs == [] do
       Logger.info("API_V2_NO_WIFI_NETWORKS_COMPLETING_DISCONNECTION")
       case BackendServer.complete() do
         :ok ->
           Logger.info("API_V2_WIFI_DISCONNECTION_COMPLETED_SUCCESSFULLY")
-          :ok
+
+          # After completing with no networks, manually trigger AP mode
+          # This simulates what the configuration timeout would do
+          Logger.info("API_V2_ACTIVATING_AP_MODE_AFTER_COMPLETE")
+          ap_ifname = BackendServer.get_ap_ifname()
+          case VintageNetWizard.APMode.into_ap_mode(ap_ifname) do
+            :ok ->
+              Logger.info("API_V2_AP_MODE_ACTIVATED_SUCCESSFULLY")
+              :ok
+            {:error, reason} ->
+              Logger.error("API_V2_FAILED_TO_ACTIVATE_AP_MODE: #{inspect(reason)}")
+              {:error, reason}
+          end
         {:error, reason} = error ->
           Logger.error("API_V2_FAILED_TO_COMPLETE_WIFI_DISCONNECTION: #{inspect(reason)}")
           error
