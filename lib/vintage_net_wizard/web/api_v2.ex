@@ -384,13 +384,38 @@ defmodule VintageNetWizard.Web.ApiV2 do
         BackendServer.save_method(%{method: :dhcp})
     end
 
-    # Apply WiFi networks if provided
+    # Handle WiFi networks - detect additions and deletions
     case wifi["networks"] do
-      networks when is_list(networks) and networks != [] ->
-        Enum.each(networks, fn network ->
-          {:ok, cfg} = WiFiConfiguration.json_to_network_config(network)
-          BackendServer.save(cfg)
+      networks when is_list(networks) ->
+        # Get current configurations to detect deletions
+        current_configs = BackendServer.configurations()
+        current_ssids = Enum.map(current_configs, & &1.ssid) |> MapSet.new()
+        new_ssids = Enum.map(networks, & &1["ssid"]) |> MapSet.new()
+
+        # Find SSIDs that were deleted (in current but not in new)
+        deleted_ssids = MapSet.difference(current_ssids, new_ssids)
+
+        # Delete removed networks
+        Enum.each(deleted_ssids, fn ssid ->
+          BackendServer.delete_configuration(ssid)
         end)
+
+        # Add/update new networks
+        if networks != [] do
+          # Convert networks to the format expected by BackendServer
+          network_configs = Enum.map(networks, fn network ->
+            {:ok, cfg} = WiFiConfiguration.json_to_network_config(network)
+            # Save individual configuration
+            BackendServer.save(cfg)
+            cfg
+          end)
+
+          # Also save all networks at once to .psk_wifi.json file
+          BackendServer.save_wifi_networks(networks)
+        else
+          # If no networks provided, save empty list
+          BackendServer.save_wifi_networks([])
+        end
       _ -> :ok
     end
 
