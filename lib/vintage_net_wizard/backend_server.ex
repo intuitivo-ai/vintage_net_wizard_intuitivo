@@ -1062,9 +1062,11 @@ defmodule VintageNetWizard.BackendServer do
           %{
             ssid: config.ssid,
             password: config[:psk] || "",
-            key_mgmt: key_mgmt
+            key_mgmt: key_mgmt,
+            priority: config[:priority] || 1
           }
         end)
+        |> Enum.sort_by(& &1[:priority])  # Sort by priority
     end
   end
 
