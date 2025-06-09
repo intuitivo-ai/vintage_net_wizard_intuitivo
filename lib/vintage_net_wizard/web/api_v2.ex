@@ -466,13 +466,22 @@ defmodule VintageNetWizard.Web.ApiV2 do
     if current_configs == [] do
       Logger.info("API_V2_NO_WIFI_NETWORKS_TRIGGERING_MANUAL_TIMEOUT")
 
+      # First, clean VintageNet configuration to prevent persistence after reboot
+      ifname = BackendServer.get_ap_ifname()
+      Logger.info("API_V2_CLEANING_VINTAGE_NET_PERSISTENCE_BEFORE_TIMEOUT")
+      VintageNet.configure(ifname, %{
+        type: VintageNetWiFi,
+        vintage_net_wifi: %{networks: []},
+        ipv4: %{method: :dhcp}
+      })
+
       # Get the BackendServer PID to send the timeout message
       backend_pid = Process.whereis(VintageNetWizard.BackendServer)
 
       if backend_pid do
-        # Send the configuration timeout message after 5 seconds
-        # This simulates what would happen if a configuration failed
-        Process.send_after(backend_pid, :configuration_timeout, 5_000)
+        # Send the configuration timeout message after 8 seconds
+        # This gives VintageNet time to process the empty configuration
+        Process.send_after(backend_pid, :configuration_timeout, 8_000)
         Logger.info("API_V2_MANUAL_TIMEOUT_SCHEDULED_FOR_AP_MODE_RETURN")
       else
         Logger.error("API_V2_COULD_NOT_FIND_BACKEND_SERVER_PID")
