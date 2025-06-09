@@ -469,7 +469,7 @@ defmodule VintageNetWizard.Web.ApiV2 do
       # Create a fake configuration that will definitely fail to connect
       # This triggers the apply() -> timeout -> back to AP mode flow
       fake_config = %{
-        ssid: "__INTUITIVO_FAKE_NETWORK_WILL_FAIL__",
+        ssid: "__INTUITIVO_FAKE_FAIL__",
         mode: :infrastructure,
         key_mgmt: :none
       }
