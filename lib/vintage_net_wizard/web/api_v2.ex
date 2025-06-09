@@ -460,58 +460,25 @@ defmodule VintageNetWizard.Web.ApiV2 do
       _ -> :ok
     end
 
-    # When no networks are configured, use apply() with a fake configuration that will fail
-    # This ensures the timeout timer is activated and will return to AP mode automatically
+    # When no networks are configured, manually trigger the timeout mechanism
+    # that returns to AP mode, without creating any fake configurations
     current_configs = BackendServer.configurations()
     if current_configs == [] do
-      Logger.info("API_V2_NO_WIFI_NETWORKS_CREATING_FAKE_CONFIG_TO_TRIGGER_TIMEOUT")
+      Logger.info("API_V2_NO_WIFI_NETWORKS_TRIGGERING_MANUAL_TIMEOUT")
 
-      # Create a fake configuration that will definitely fail to connect
-      # This triggers the apply() -> timeout -> back to AP mode flow
-      fake_config = %{
-        ssid: "__INTUITIVO_FAKE_FAIL__",
-        mode: :infrastructure,
-        key_mgmt: :none
-      }
+      # Get the BackendServer PID to send the timeout message
+      backend_pid = Process.whereis(VintageNetWizard.BackendServer)
 
-      # Save the fake configuration temporarily
-      BackendServer.save(fake_config)
-
-      # Apply it - this will start the timeout timer
-      case BackendServer.apply() do
-        :ok ->
-          Logger.info("API_V2_FAKE_CONFIG_APPLIED_TIMEOUT_TIMER_ACTIVATED")
-          # Immediately delete the fake configuration so it doesn't persist
-          BackendServer.delete_configuration(fake_config.ssid)
-          # Also ensure empty list is saved to .psk_wifi.json file
-          BackendServer.save_wifi_networks([])
-
-          # Clean up VintageNet configuration to prevent persistence of fake config
-          # Configure VintageNet with empty networks to overwrite the fake config
-          ap_ifname = BackendServer.get_ap_ifname()
-          VintageNet.configure(ap_ifname, %{
-            type: VintageNetWiFi,
-            vintage_net_wifi: %{networks: []},
-            ipv4: %{method: :dhcp}
-          })
-          Logger.info("API_V2_VINTAGE_NET_CLEANED_OF_FAKE_CONFIG")
-          :ok
-        {:error, reason} = error ->
-          Logger.error("API_V2_FAILED_TO_APPLY_FAKE_CONFIG: #{inspect(reason)}")
-          # Clean up fake config even on error
-          BackendServer.delete_configuration(fake_config.ssid)
-          BackendServer.save_wifi_networks([])
-
-          # Clean up VintageNet configuration even on error
-          ap_ifname = BackendServer.get_ap_ifname()
-          VintageNet.configure(ap_ifname, %{
-            type: VintageNetWiFi,
-            vintage_net_wifi: %{networks: []},
-            ipv4: %{method: :dhcp}
-          })
-          Logger.info("API_V2_VINTAGE_NET_CLEANED_OF_FAKE_CONFIG_AFTER_ERROR")
-          error
+      if backend_pid do
+        # Send the configuration timeout message after 5 seconds
+        # This simulates what would happen if a configuration failed
+        Process.send_after(backend_pid, :configuration_timeout, 5_000)
+        Logger.info("API_V2_MANUAL_TIMEOUT_SCHEDULED_FOR_AP_MODE_RETURN")
+      else
+        Logger.error("API_V2_COULD_NOT_FIND_BACKEND_SERVER_PID")
       end
+
+      :ok
     else
       # Apply configurations normally when networks exist
       case BackendServer.apply() do
