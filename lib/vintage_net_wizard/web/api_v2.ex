@@ -392,7 +392,7 @@ defmodule VintageNetWizard.Web.ApiV2 do
   end
   defp maybe_apply_lock_type(_), do: :ok
 
-  defp maybe_apply_wifi_config(%{"wifi" => wifi}) when not is_nil(wifi) do
+  defp maybe_apply_wifi_config(%{"wifi" => wifi, "hotspotOutput" => hotspotOutput}) when not is_nil(wifi) do
     # Apply network method and configurations
     case wifi["method"] do
       "static" ->
@@ -463,7 +463,7 @@ defmodule VintageNetWizard.Web.ApiV2 do
     # When no networks are configured, manually trigger the timeout mechanism
     # that returns to AP mode, without creating any fake configurations
     current_configs = BackendServer.configurations()
-    if current_configs == [] do
+    if current_configs == [] and (hotspotOutput == "disabled" or hotspotOutput == "" or is_nil(hotspotOutput)) do
       Logger.info("API_V2_NO_WIFI_NETWORKS_TRIGGERING_MANUAL_TIMEOUT")
 
       # First, clean VintageNet configuration to prevent persistence after reboot
