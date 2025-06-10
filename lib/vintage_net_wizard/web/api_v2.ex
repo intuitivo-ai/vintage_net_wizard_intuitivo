@@ -252,9 +252,10 @@ defmodule VintageNetWizard.Web.ApiV2 do
 
   get "/config" do
 
-    Logger.info("API_V2_GET_CONFIG_REQUEST")
-
     config = BackendServer.get_board_config()  # Using existing function
+
+    Logger.info("API_V2_GET_CONFIG_REQUEST_RESPONSE: #{inspect(config)}")
+
     send_json(conn, 200, config)
   end
 
