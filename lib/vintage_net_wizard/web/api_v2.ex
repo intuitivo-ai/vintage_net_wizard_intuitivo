@@ -496,7 +496,7 @@ defmodule VintageNetWizard.Web.ApiV2 do
           :ok
         {:error, reason} = error ->
           Logger.error("API_V2_FAILED_TO_APPLY_WIFI_CONFIGURATIONS: #{inspect(reason)}")
-          error
+          :ok
       end
     end
 
