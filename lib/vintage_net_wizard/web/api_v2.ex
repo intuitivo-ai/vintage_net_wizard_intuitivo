@@ -21,6 +21,29 @@ defmodule VintageNetWizard.Web.ApiV2 do
 
   ### PUT /lock-type
     Update lock type configuration.
+
+  ### PUT /config
+    Update complete device configuration including WiFi networks with priorities.
+
+    #### WiFi Networks Priority Handling:
+    - Each network can optionally include a "priority" field (integer, starting from 1)
+    - If no priority is specified, networks are assigned automatic priorities in order (1, 2, 3...)
+    - Lower numbers have higher priority (1 = highest priority, 2 = second priority, etc.)
+    - The first network added without explicit priority becomes the primary/default network
+    - Networks are sorted by priority before being applied to the system
+
+    Example:
+    ```json
+    {
+      "wifi": {
+        "networks": [
+          {"ssid": "Home-WiFi", "password": "secret123", "priority": 1},
+          {"ssid": "Backup-WiFi", "password": "backup456"},  // Gets priority 2
+          {"ssid": "Guest-WiFi", "password": "guest789", "priority": 3}
+        ]
+      }
+    }
+    ```
   """
 
   use Plug.Router
@@ -229,9 +252,10 @@ defmodule VintageNetWizard.Web.ApiV2 do
 
   get "/config" do
 
-    Logger.info("API_V2_GET_CONFIG_REQUEST")
-
     config = BackendServer.get_board_config()  # Using existing function
+
+    Logger.info("API_V2_GET_CONFIG_REQUEST_RESPONSE: #{inspect(config)}")
+
     send_json(conn, 200, config)
   end
 
@@ -369,7 +393,7 @@ defmodule VintageNetWizard.Web.ApiV2 do
   end
   defp maybe_apply_lock_type(_), do: :ok
 
-  defp maybe_apply_wifi_config(%{"wifi" => wifi}) when not is_nil(wifi) do
+  defp maybe_apply_wifi_config(%{"wifi" => wifi, "hotspotOutput" => hotspotOutput}) when not is_nil(wifi) do
     # Apply network method and configurations
     case wifi["method"] do
       "static" ->
@@ -384,19 +408,98 @@ defmodule VintageNetWizard.Web.ApiV2 do
         BackendServer.save_method(%{method: :dhcp})
     end
 
-    # Apply WiFi networks if provided
+    # Handle WiFi networks - detect additions and deletions
     case wifi["networks"] do
-      networks when is_list(networks) and networks != [] ->
-        Enum.each(networks, fn network ->
-          {:ok, cfg} = WiFiConfiguration.json_to_network_config(network)
-          BackendServer.save(cfg)
+      networks when is_list(networks) ->
+        # Get current configurations to detect deletions
+        current_configs = BackendServer.configurations()
+        current_ssids = Enum.map(current_configs, & &1.ssid) |> MapSet.new()
+        new_ssids = Enum.map(networks, & &1["ssid"]) |> MapSet.new()
+
+        # Find SSIDs that were deleted (in current but not in new)
+        deleted_ssids = MapSet.difference(current_ssids, new_ssids)
+
+        # Delete removed networks
+        Enum.each(deleted_ssids, fn ssid ->
+          BackendServer.delete_configuration(ssid)
         end)
+
+        # Add/update new networks
+        if networks != [] do
+          # Convert networks to the format expected by BackendServer
+          network_configs = Enum.map(networks, fn network ->
+            {:ok, cfg} = WiFiConfiguration.json_to_network_config(network)
+            # Save individual configuration
+            BackendServer.save(cfg)
+            cfg
+          end)
+
+          # Handle priority order - assign automatic priorities if not specified
+          networks_with_priority = assign_network_priorities(networks)
+
+          # Extract priority order for set_priority_order
+          priority_order = Enum.map(networks_with_priority, & &1["ssid"])
+
+          # Set the priority order using the existing function
+          :ok = BackendServer.set_priority_order(priority_order)
+
+          Logger.info("API_V2_WIFI_NETWORKS_PRIORITY_ORDER_SET: #{inspect(priority_order)}")
+
+          # Also save all networks at once to .psk_wifi.json file
+          BackendServer.save_wifi_networks(networks_with_priority)
+        else
+          # If no networks provided, save empty list and clear all WiFi configurations
+          Logger.info("API_V2_CLEARING_ALL_WIFI_NETWORKS")
+          BackendServer.save_wifi_networks([])
+
+          # Ensure all current configurations are explicitly cleared
+          current_configs = BackendServer.configurations()
+          Enum.each(current_configs, fn config ->
+            BackendServer.delete_configuration(config.ssid)
+          end)
+        end
       _ -> :ok
     end
 
-     BackendServer.apply()
+    # When no networks are configured, manually trigger the timeout mechanism
+    # that returns to AP mode, without creating any fake configurations
+    current_configs = BackendServer.configurations()
+    if current_configs == [] and (hotspotOutput == "disabled" or hotspotOutput == "" or is_nil(hotspotOutput)) do
+      Logger.info("API_V2_NO_WIFI_NETWORKS_TRIGGERING_MANUAL_TIMEOUT")
 
-     :ok
+      # First, clean VintageNet configuration to prevent persistence after reboot
+      ifname = BackendServer.get_ap_ifname()
+      Logger.info("API_V2_CLEANING_VINTAGE_NET_PERSISTENCE_BEFORE_TIMEOUT")
+      VintageNet.configure(ifname, %{
+        type: VintageNetWiFi,
+        vintage_net_wifi: %{networks: []},
+        ipv4: %{method: :dhcp}
+      })
+
+      # Get the BackendServer PID to send the timeout message
+      backend_pid = Process.whereis(VintageNetWizard.BackendServer)
+
+      if backend_pid do
+        # Send the configuration timeout message after 8 seconds
+        # This gives VintageNet time to process the empty configuration
+        Process.send_after(backend_pid, :configuration_timeout, 8_000)
+        Logger.info("API_V2_MANUAL_TIMEOUT_SCHEDULED_FOR_AP_MODE_RETURN")
+      else
+        Logger.error("API_V2_COULD_NOT_FIND_BACKEND_SERVER_PID")
+      end
+
+      :ok
+    else
+      # Apply configurations normally when networks exist
+      case BackendServer.apply() do
+        :ok ->
+          Logger.info("API_V2_WIFI_CONFIGURATIONS_APPLIED_SUCCESSFULLY")
+          :ok
+        {:error, reason} = error ->
+          Logger.error("API_V2_FAILED_TO_APPLY_WIFI_CONFIGURATIONS: #{inspect(reason)}")
+          :ok
+      end
+    end
 
   end
   defp maybe_apply_wifi_config(_), do: :ok
@@ -567,6 +670,28 @@ defmodule VintageNetWizard.Web.ApiV2 do
     conn
     |> merge_resp_headers(@cors_headers)
     |> send_resp(204, "")
+  end
+
+  defp assign_network_priorities(networks) do
+    # Sort networks by existing priority if present, or assign by order
+    networks_with_explicit_priority =
+      networks
+      |> Enum.with_index(1)  # Start from 1
+      |> Enum.map(fn {network, index} ->
+        priority = case network["priority"] do
+          p when is_integer(p) and p > 0 -> p
+          p when is_binary(p) ->
+            case Integer.parse(p) do
+              {parsed_p, ""} when parsed_p > 0 -> parsed_p
+              _ -> index  # Use index if priority is invalid
+            end
+          _ -> index  # Use index if no priority specified
+        end
+        Map.put(network, "priority", priority)
+      end)
+
+    # Sort by priority to ensure correct order
+    Enum.sort_by(networks_with_explicit_priority, & &1["priority"])
   end
 
 end

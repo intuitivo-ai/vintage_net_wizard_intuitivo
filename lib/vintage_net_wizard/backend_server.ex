@@ -149,6 +149,22 @@ defmodule VintageNetWizard.BackendServer do
   end
 
   @doc """
+  Save WiFi networks with passwords to persistent file
+  """
+  @spec save_wifi_networks(list()) :: :ok
+  def save_wifi_networks(networks) do
+    GenServer.cast(__MODULE__, {:save_wifi_networks, networks})
+  end
+
+  @doc """
+  Get WiFi networks with passwords from persistent file
+  """
+  @spec get_wifi_networks_with_passwords() :: list()
+  def get_wifi_networks_with_passwords() do
+    GenServer.call(__MODULE__, :get_wifi_networks_with_passwords)
+  end
+
+  @doc """
   Get complete board configuration
   """
   @spec get_board_config() :: map()
@@ -304,32 +320,28 @@ defmodule VintageNetWizard.BackendServer do
     GenServer.cast(__MODULE__, :init_cameras)
   end
 
-  @impl GenServer
-  def init([backend, ifname, opts]) do
-    device_info = Keyword.get(opts, :device_info, [])
+  @doc """
+  Get the WiFi networks configurations
+  """
+  @spec get_wifi_networks() :: list()
+  def get_wifi_networks() do
+    GenServer.call(__MODULE__, :get_wifi_networks)
+  end
 
-    configurations =
-      opts
-      |> Keyword.get(:configurations, [])
-      |> Enum.into(%{}, fn config -> {config.ssid, config} end)
+  @doc """
+  Get the AP interface name
+  """
+  @spec get_ap_ifname() :: String.t()
+  def get_ap_ifname() do
+    GenServer.call(__MODULE__, :get_ap_ifname)
+  end
 
-    ap_ifname = Keyword.fetch!(opts, :ap_ifname)
-
-    result = get_init_values()
-
-    {:ok,
-     %State{
-       configurations: configurations,
-       backend: backend,
-       # Scanning is done by ifname
-       backend_state: backend.init(ifname, ap_ifname),
-       device_info: device_info,
-       ifname: ifname,
-       ap_ifname: ap_ifname,
-       internet_select: result.internet_select,
-       apn: result.apn,
-       ntp: result.ntps
-     }}
+  @doc """
+  Get the complete state for debugging purposes
+  """
+  @spec get_configuration_state() :: State.t()
+  def get_configuration_state() do
+    GenServer.call(__MODULE__, :configuration_state)
   end
 
   @impl GenServer
@@ -444,7 +456,11 @@ defmodule VintageNetWizard.BackendServer do
     # Scan if ssid is hidden
     full_config = if not_hidden?, do: config, else: Map.put(config, :scan_ssid, 1)
 
-    {:reply, :ok, %{state | configurations: Map.put(configs, config.ssid, full_config)}}
+    # Also save to .psk_wifi.json file with password
+    updated_configs = Map.put(configs, config.ssid, full_config)
+    save_networks_to_file(updated_configs)
+
+    {:reply, :ok, %{state | configurations: updated_configs}}
   end
 
   def handle_call(
@@ -552,11 +568,16 @@ defmodule VintageNetWizard.BackendServer do
 
   def handle_call(:reset, _from, %State{backend: backend, backend_state: backend_state} = state) do
     new_state = backend.reset(backend_state)
+    # Clear .psk_wifi.json file
+    save_networks_to_file(%{})
     {:reply, :ok, %{state | configurations: %{}, backend_state: new_state}}
   end
 
   def handle_call({:delete_configuration, ssid}, _from, %State{configurations: configs} = state) do
-    {:reply, :ok, %{state | configurations: Map.delete(configs, ssid)}}
+    updated_configs = Map.delete(configs, ssid)
+    # Also update .psk_wifi.json file
+    save_networks_to_file(updated_configs)
+    {:reply, :ok, %{state | configurations: updated_configs}}
   end
 
   def handle_call(:configuration_state, _from, state) do
@@ -861,6 +882,34 @@ defmodule VintageNetWizard.BackendServer do
   end
 
   @impl GenServer
+  def handle_cast({:save_wifi_networks, networks}, state) do
+    # Save networks with passwords to .psk_wifi.json file
+    wifi_data = %{
+      networks: networks,
+      saved_at: DateTime.utc_now() |> DateTime.to_iso8601()
+    }
+
+    json = Jason.encode!(wifi_data, pretty: true)
+    File.write("/root/.psk_wifi.json", json, [:write])
+
+    {:noreply, state}
+  end
+
+  @impl GenServer
+  def handle_call(:get_wifi_networks_with_passwords, _from, state) do
+    networks = case File.read("/root/.psk_wifi.json") do
+      {:ok, binary} ->
+        case Jason.decode(binary) do
+          {:ok, %{"networks" => networks}} -> networks
+          {:error, _} -> []
+        end
+      {:error, _} -> []
+    end
+
+    {:reply, networks, state}
+  end
+
+  @impl GenServer
   def handle_info(
         info,
         %State{
@@ -985,24 +1034,36 @@ defmodule VintageNetWizard.BackendServer do
 
   # Helper functions for board config
   defp get_wifi_networks(state) do
-    state.configurations
-    |> Map.values()
-    |> Enum.map(fn config ->
-      key_mgmt = case config[:key_mgmt] do
-        :wpa_psk -> "wpa-psk"
-        :wpa2_psk -> "wpa2-psk"
-        :wpa_eap -> "wpa-eap"
-        :none -> "none"
-        nil -> "none"
-        other -> to_string(other)
-      end
+    # Read from .psk_wifi.json file instead of state
+    case File.read("/root/.psk_wifi.json") do
+      {:ok, binary} ->
+        case Jason.decode(binary) do
+          {:ok, %{"networks" => networks}} -> networks
+          {:error, _} -> []
+        end
+      {:error, _} ->
+        # Fallback to state if file doesn't exist
+        state.configurations
+        |> Map.values()
+        |> Enum.map(fn config ->
+          key_mgmt = case config[:key_mgmt] do
+            :wpa_psk -> "wpa-psk"
+            :wpa2_psk -> "wpa2-psk"
+            :wpa_eap -> "wpa-eap"
+            :none -> "none"
+            nil -> "none"
+            other -> to_string(other)
+          end
 
-      %{
-        ssid: config.ssid,
-        password: config[:psk] || "",
-        key_mgmt: key_mgmt
-      }
-    end)
+          %{
+            ssid: config.ssid,
+            password: config[:psk] || "",
+            key_mgmt: key_mgmt,
+            priority: config[:priority] || 1
+          }
+        end)
+        |> Enum.sort_by(& &1[:priority])  # Sort by priority
+    end
   end
 
   defp get_network_method() do
@@ -1132,6 +1193,36 @@ defmodule VintageNetWizard.BackendServer do
     File.write("/root/.secret_wifi.txt", json, [:write])
   end
 
+  # Save networks configurations to .psk_wifi.json file
+  defp save_networks_to_file(configurations) do
+    networks = configurations
+    |> Map.values()
+    |> Enum.map(fn config ->
+      key_mgmt = case config[:key_mgmt] do
+        :wpa_psk -> "wpa-psk"
+        :wpa2_psk -> "wpa2-psk"
+        :wpa_eap -> "wpa-eap"
+        :none -> "none"
+        nil -> "none"
+        other -> to_string(other)
+      end
+
+      %{
+        ssid: config.ssid,
+        password: config[:psk] || "",
+        key_mgmt: key_mgmt
+      }
+    end)
+
+    wifi_data = %{
+      networks: networks,
+      saved_at: DateTime.utc_now() |> DateTime.to_iso8601()
+    }
+
+    json = Jason.encode!(wifi_data, pretty: true)
+    File.write("/root/.psk_wifi.json", json, [:write])
+  end
+
   def get_ap_credentials() do
     result = File.read("/root/.secret_wifi.txt")
 
@@ -1147,5 +1238,42 @@ defmodule VintageNetWizard.BackendServer do
         }
       {:error, _posix} -> %{ssid: "", password: ""}
     end
+  end
+
+  @impl GenServer
+  def init([backend, ifname, opts]) do
+    device_info = Keyword.get(opts, :device_info, [])
+
+    configurations =
+      opts
+      |> Keyword.get(:configurations, [])
+      |> Enum.into(%{}, fn config -> {config.ssid, config} end)
+
+    ap_ifname = Keyword.fetch!(opts, :ap_ifname)
+
+    result = get_init_values()
+
+    {:ok,
+     %State{
+       configurations: configurations,
+       backend: backend,
+       # Scanning is done by ifname
+       backend_state: backend.init(ifname, ap_ifname),
+       device_info: device_info,
+       ifname: ifname,
+       ap_ifname: ap_ifname,
+       internet_select: result.internet_select,
+       apn: result.apn,
+       ntp: result.ntps
+     }}
+  end
+
+  def handle_call(:get_wifi_networks, _from, state) do
+    wifi_networks = get_wifi_networks(state)
+    {:reply, wifi_networks, state}
+  end
+
+  def handle_call(:get_ap_ifname, _from, %State{ap_ifname: ap_ifname} = state) do
+    {:reply, ap_ifname, state}
   end
 end
