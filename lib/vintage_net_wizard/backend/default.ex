@@ -99,13 +99,20 @@ defmodule VintageNetWizard.Backend.Default do
 
   def handle_info(
         {VintageNet, ["interface", ifname, "connection"], _, connectivity, _},
-        %{state: :applying, data: %{configuration_status: :good} = data, ifname: ifname} = state
+        %{state: :applying, data: %{configuration_status: :good} = data, ifname: ifname, ap_ifname: ap_ifname} = state
       )
       when connectivity in [:lan, :internet] do
     # Everything connected, so cancel our timeout
     _ = Process.cancel_timer(data.apply_configuration_timer)
 
-    {:noreply, %{state | state: :idle, data: Map.delete(data, :apply_configuration_timer)}}
+    # Even when configuration_status is already :good, we need to return to AP mode
+    # to allow for additional configurations
+    Process.sleep(4_000)
+    ok = APMode.into_ap_mode(ap_ifname)
+    
+    Logger.info("BACKEND: Configuration successful (already good), returning to AP mode")
+
+    {:noreply, %{state | state: :configuring, data: Map.delete(data, :apply_configuration_timer)}}
   end
 
   def handle_info(
