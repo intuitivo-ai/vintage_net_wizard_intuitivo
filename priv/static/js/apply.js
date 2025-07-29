@@ -147,15 +147,33 @@ function applyConfiguration(title, button_color) {
           createCompleteLink,
         ];
       case "complete":
-        return ["Configuration complete", null];
+        return [
+          `
+          <div class="text-center">
+            <h3 class="text-success">✓ Configuration Complete!</h3>
+            <p>Your device has been successfully configured and will now connect to your network.</p>
+            <p class="text-muted">You can close this page or wait for automatic redirection...</p>
+          </div>
+          `, 
+          null
+        ];
     }
   }
 
   function complete() {
-    fetch("/api/v1/complete").then((resp) => {
-      state.view = "complete";
-      render(state);
-    });
+    // First, show the success message immediately
+    state.view = "complete";
+    render(state);
+    
+    // Then, after showing success, make the API call to actually complete
+    setTimeout(() => {
+      fetch("/api/v1/complete").then((resp) => {
+        console.log("Configuration completed successfully");
+        // Optionally redirect or show additional message
+      }).catch((error) => {
+        console.error("Error completing configuration:", error);
+      });
+    }, 2000); // Show success message for 2 seconds before actually completing
   }
 
   function render(state) {
