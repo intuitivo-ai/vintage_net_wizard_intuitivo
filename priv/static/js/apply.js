@@ -17,37 +17,62 @@ function applyConfiguration(title, button_color) {
   }
 
   function getStatus() {
-    fetch("/api/v1/configuration/status")
-      .then((resp) => resp.json())
+    // Add timeout to prevent hanging requests
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+    
+    fetch("/api/v1/configuration/status", {
+      signal: controller.signal
+    })
+      .then((resp) => {
+        clearTimeout(timeoutId);
+        if (!resp.ok) {
+          throw new Error(`HTTP ${resp.status}`);
+        }
+        return resp.json();
+      })
       .then(handleStatusResponse)
       .catch(handleNetworkErrorResponse);
   }
 
   function handleStatusResponse(status) {
+    console.log("Status received:", status);
+    
     switch (status) {
       case "not_configured":
         state.dots = state.dots + ".";
+        if (state.dots.length > 10) {
+          state.dots = ""; // Reset dots to prevent infinite growth
+        }
         render(state);
+        runGetStatus(); // Continue polling
         break;
       case "good":
-        if (!status.completed) {
-          state.view = "configurationGood";
-          state.configurationStatus = status;
-          state.completeTimer = setTimeout(complete, 60000);
-          render(state);
-        }
+        state.view = "configurationGood";
+        state.configurationStatus = status;
+        state.completeTimer = setTimeout(complete, 60000);
+        render(state);
         break;
       case "bad":
         state.view = "configurationBad";
         state.configurationStatus = status;
         render(state);
         break;
+      default:
+        console.log("Unknown status:", status);
+        runGetStatus(); // Continue polling for unknown status
+        break;
     }
   }
 
   function handleNetworkErrorResponse(e) {
+    console.log("Network error:", e);
     state.dots = state.dots + ".";
+    if (state.dots.length > 15) {
+      state.dots = ""; // Reset dots to prevent infinite growth
+    }
     render(state);
+    runGetStatus(); // Continue polling even on network errors
   }
 
   function createCompleteLink({ targetElem, view }) {
@@ -147,5 +172,35 @@ function applyConfiguration(title, button_color) {
     headers: {
       "Content-Type": "application/json",
     },
-  }).then((resp) => runGetStatus());
+  })
+  .then((resp) => {
+    if (!resp.ok) {
+      if (resp.status === 404) {
+        // No configurations to apply
+        state.view = "configurationBad";
+        state.targetElem.innerHTML = `
+          <p>No network configurations found to apply.</p>
+          <p>Please go back and configure at least one network.</p>
+          <a class="btn btn-primary" href="/">Configure Networks</a>
+        `;
+        return;
+      }
+      throw new Error(`HTTP ${resp.status}`);
+    }
+    return resp;
+  })
+  .then((resp) => {
+    if (resp) {
+      runGetStatus();
+    }
+  })
+  .catch((error) => {
+    console.error("Apply error:", error);
+    state.view = "configurationBad";
+    state.targetElem.innerHTML = `
+      <p>Failed to start configuration process.</p>
+      <p>Error: ${error.message}</p>
+      <a class="btn btn-primary" href="/">Try Again</a>
+    `;
+  });
 }

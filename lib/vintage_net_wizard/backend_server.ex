@@ -610,7 +610,7 @@ defmodule VintageNetWizard.BackendServer do
   end
 
   @impl GenServer
-  def handle_cast({:start_cams_ap, _value}, state) do
+  def handle_cast({:start_cams_ap, _value}, %State{backend: backend, backend_state: backend_state} = state) do
 
     In2Firmware.Services.Operations.ReviewHW.get_lock_type()
     In2Firmware.Services.Operations.ReviewHW.get_profile()
@@ -618,15 +618,11 @@ defmodule VintageNetWizard.BackendServer do
     In2Firmware.Services.Operations.ReviewHW.get_state_comm()
     In2Firmware.Services.Operations.ReviewHW.get_init_state()
 
-    #if value == :ap do
-      #send(self(), :re_init_stream_gst)
-    #  send(self(), :init_stream_gst)
-    #else
-     #Process.send_after(self(), :re_init_stream_gst, 10_000)
-    # Process.send_after(self(), :init_stream_gst, 5_000)
-    #end
+    # Reset backend state to allow new configurations when entering AP mode
+    new_backend_state = backend.reset(backend_state)
+    Logger.info("BACKEND_SERVER: Resetting backend state for new AP mode session")
 
-    {:noreply,  state}
+    {:noreply, %{state | backend_state: new_backend_state}}
   end
 
   @impl GenServer
@@ -927,8 +923,13 @@ defmodule VintageNetWizard.BackendServer do
         # idle state with good configuration means we've completed setup
         # and wizard has been shut down. So let's clear configurations
         # so aren't hanging around in memory
-
-        {:noreply, %{state | configurations: %{}, backend_state: new_backend_state}}
+        # 
+        # COMMENTED OUT: Don't clear configurations to allow reconfiguration
+        # This was causing issues when trying to configure WiFi a second time
+        # {:noreply, %{state | configurations: %{}, backend_state: new_backend_state}}
+        
+        Logger.info("BACKEND_SERVER: Configuration successful, maintaining configurations for potential reconfiguration")
+        {:noreply, %{state | backend_state: new_backend_state}}
 
       {:noreply, new_backend_state} ->
         {:noreply, %{state | backend_state: new_backend_state}}
