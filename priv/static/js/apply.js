@@ -192,9 +192,12 @@ function applyConfiguration(title, button_color) {
     },
   })
   .then((resp) => {
+    console.log("Apply response status:", resp.status, "OK:", resp.ok);
+    
     if (!resp.ok) {
       if (resp.status === 404) {
         // No configurations to apply
+        console.log("No configurations found to apply");
         state.view = "configurationBad";
         state.targetElem.innerHTML = `
           <p>No network configurations found to apply.</p>
@@ -203,21 +206,43 @@ function applyConfiguration(title, button_color) {
         `;
         return;
       }
-      throw new Error(`HTTP ${resp.status}`);
+      // Log the specific HTTP error
+      console.error("HTTP Error:", resp.status, resp.statusText);
+      throw new Error(`HTTP ${resp.status}: ${resp.statusText}`);
     }
     return resp;
   })
   .then((resp) => {
     if (resp) {
+      console.log("Apply successful, starting status polling");
       runGetStatus();
     }
   })
   .catch((error) => {
-    console.error("Apply error:", error);
+    console.error("Apply error details:", error);
+    console.error("Error type:", error.constructor.name);
+    console.error("Error message:", error.message);
+    
+    let errorDetails = error.message;
+    let troubleshooting = "";
+    
+    // Provide specific troubleshooting based on error type
+    if (error.message.includes("HTTP 500")) {
+      troubleshooting = "<p><strong>Possible causes:</strong> Internal server error, check device logs.</p>";
+    } else if (error.message.includes("HTTP 404")) {
+      troubleshooting = "<p><strong>Possible causes:</strong> No network configurations found.</p>";
+    } else if (error.message.includes("Failed to fetch") || error.message.includes("NetworkError")) {
+      troubleshooting = "<p><strong>Possible causes:</strong> Network connection lost, device not responding.</p>";
+    } else if (error.message.includes("timeout") || error.message.includes("aborted")) {
+      troubleshooting = "<p><strong>Possible causes:</strong> Request timeout, device is busy.</p>";
+    }
+    
     state.view = "configurationBad";
     state.targetElem.innerHTML = `
       <p>Failed to start configuration process.</p>
-      <p>Error: ${error.message}</p>
+      <p><strong>Error:</strong> ${errorDetails}</p>
+      ${troubleshooting}
+      <p>Check the browser console for more details.</p>
       <a class="btn btn-primary" href="/">Try Again</a>
     `;
   });

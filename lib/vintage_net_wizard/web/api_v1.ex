@@ -206,11 +206,15 @@ defmodule VintageNetWizard.Web.ApiV1 do
   end
 
   post "/apply" do
+    Logger.info("API_V1_APPLY_REQUEST - Starting configuration apply")
+    
     case BackendServer.apply() do
       :ok ->
+        Logger.info("API_V1_APPLY_SUCCESS - Configuration apply started successfully")
         send_json(conn, 202, "")
 
       {:error, :no_configurations} ->
+        Logger.warning("API_V1_APPLY_ERROR - No configurations found")
         json =
           %{
             error: "no_configurations",
@@ -219,6 +223,28 @@ defmodule VintageNetWizard.Web.ApiV1 do
           |> Jason.encode!()
 
         send_json(conn, 404, json)
+        
+      {:error, :invalid_state} ->
+        Logger.error("API_V1_APPLY_ERROR - Backend in invalid state")
+        json =
+          %{
+            error: "invalid_state",
+            message: "Backend is in invalid state. Try resetting the configuration."
+          }
+          |> Jason.encode!()
+
+        send_json(conn, 500, json)
+        
+      {:error, reason} ->
+        Logger.error("API_V1_APPLY_ERROR - Backend apply failed: #{inspect(reason)}")
+        json =
+          %{
+            error: "backend_error",
+            message: "Failed to apply configuration: #{inspect(reason)}"
+          }
+          |> Jason.encode!()
+
+        send_json(conn, 500, json)
     end
   end
 

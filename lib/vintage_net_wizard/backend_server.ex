@@ -486,6 +486,7 @@ defmodule VintageNetWizard.BackendServer do
         %State{configurations: wifi_configs} = state
       )
       when wifi_configs == %{} do
+    Logger.warning("BACKEND_SERVER: Apply failed - No configurations found")
     {:reply, {:error, :no_configurations}, state}
   end
 
@@ -499,10 +500,13 @@ defmodule VintageNetWizard.BackendServer do
           ifname: ifname
         } = state
       ) do
+    Logger.info("BACKEND_SERVER: Apply starting - Backend state: #{inspect(backend_state.state)}, Configs: #{map_size(wifi_configs)}")
+    
     old_connection = old_connection(ifname)
 
     case backend.apply(build_config_list(wifi_configs), backend_state) do
       {:ok, new_backend_state} ->
+        Logger.info("BACKEND_SERVER: Apply successful - New backend state: #{inspect(new_backend_state.state)}")
         updated_state = %{state | backend_state: new_backend_state}
         # If applying the new configuration does not change the connection,
         # send a message to that effect so the Wizard does not timeout
@@ -511,6 +515,7 @@ defmodule VintageNetWizard.BackendServer do
         {:reply, :ok, updated_state}
 
       {:error, _} = error ->
+        Logger.error("BACKEND_SERVER: Apply failed - Error: #{inspect(error)}, Backend state: #{inspect(backend_state.state)}")
         {:reply, error, state}
     end
   end
@@ -612,6 +617,8 @@ defmodule VintageNetWizard.BackendServer do
   @impl GenServer
   def handle_cast({:start_cams_ap, _value}, %State{backend: backend, backend_state: backend_state} = state) do
 
+    Logger.info("BACKEND_SERVER: Starting AP mode - Current backend state: #{inspect(backend_state.state)}")
+
     In2Firmware.Services.Operations.ReviewHW.get_lock_type()
     In2Firmware.Services.Operations.ReviewHW.get_profile()
     In2Firmware.Services.Operations.ReviewHW.get_version()
@@ -620,7 +627,7 @@ defmodule VintageNetWizard.BackendServer do
 
     # Reset backend state to allow new configurations when entering AP mode
     new_backend_state = backend.reset(backend_state)
-    Logger.info("BACKEND_SERVER: Resetting backend state for new AP mode session")
+    Logger.info("BACKEND_SERVER: Backend state reset to: #{inspect(new_backend_state.state)} for new AP mode session")
 
     {:noreply, %{state | backend_state: new_backend_state}}
   end
