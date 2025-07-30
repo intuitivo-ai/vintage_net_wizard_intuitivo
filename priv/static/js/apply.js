@@ -261,6 +261,7 @@ function applyConfiguration(title, button_color) {
         error.message.includes("ERR_NETWORK_CHANGED") ||
         error.message.includes("ERR_ABORTED") ||
         error.message.includes("Failed to fetch") ||
+        error.message.includes("Load failed") ||  // Add Safari specific error
         error.name === "AbortError") {
       
       console.log("Network change/abort detected - this is normal during WiFi configuration");
