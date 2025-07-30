@@ -207,20 +207,31 @@ function applyConfiguration(title, button_color) {
     }
   }
 
-  // Add timeout to the apply fetch to handle network issues
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => {
-    console.log("Apply request timeout - aborting");
-    controller.abort();
-  }, 15000); // 15 second timeout for apply
+  // Show initial message that configuration is starting
+  state.targetElem.innerHTML = `
+    <p>Starting configuration process...</p>
+    <p>Preparing to apply network settings...</p>
+    <p class="text-muted">Please wait a moment...</p>
+  `;
 
-  fetch("/api/v1/apply", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    signal: controller.signal
-  })
+  // Add delay before making the apply request to ensure stability
+  setTimeout(() => {
+    console.log("Starting apply request after delay");
+    
+    // Add timeout to the apply fetch to handle network issues
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => {
+      console.log("Apply request timeout - aborting");
+      controller.abort();
+    }, 15000); // 15 second timeout for apply
+
+    fetch("/api/v1/apply", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      signal: controller.signal
+    })
   .then((resp) => {
     clearTimeout(timeoutId);
     console.log("Apply response status:", resp.status, "OK:", resp.ok);
@@ -302,4 +313,5 @@ function applyConfiguration(title, button_color) {
       <a class="btn btn-primary" href="/">Try Again</a>
     `;
   });
+  }, 2000); // 2 second delay before starting the apply process
 }
