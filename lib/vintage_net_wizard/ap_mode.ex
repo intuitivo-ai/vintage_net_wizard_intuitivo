@@ -3,6 +3,8 @@ defmodule VintageNetWizard.APMode do
   This module contains utilities for configuration VintageNet in AP Mode
   """
 
+  require Logger
+
   @default_hostname "vintage_net_wizard"
   @default_dns_name "wifi.config"
   @default_subnet {192, 168, 0, 0}
