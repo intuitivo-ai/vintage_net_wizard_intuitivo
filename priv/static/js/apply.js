@@ -15,6 +15,10 @@ function applyConfiguration(title, button_color) {
   function runGetStatus() {
     setTimeout(getStatus, 1000);
   }
+  
+  function runGetStatusImmediate() {
+    setTimeout(getStatus, 200); // Start polling much sooner for immediate calls
+  }
 
   function getStatus() {
     // Add timeout to prevent hanging requests
@@ -289,7 +293,7 @@ function applyConfiguration(title, button_color) {
     // Check if resp is not null (could be null from 404 handling above)
     if (resp) {
       console.log("Apply successful, starting status polling");
-      runGetStatus();
+      runGetStatusImmediate();
     }
   })
   .catch((error) => {
@@ -317,8 +321,8 @@ function applyConfiguration(title, button_color) {
       
       // Start polling immediately since the apply probably worked
       setTimeout(() => {
-        runGetStatus();
-      }, 3000); // Wait 3 seconds then start polling
+        runGetStatusImmediate();
+      }, 2000); // Wait 2 seconds then start polling
       
       return; // Don't show error message
     }
@@ -344,5 +348,5 @@ function applyConfiguration(title, button_color) {
       <a class="btn btn-primary" href="/">Try Again</a>
     `;
   });
-  }, 2000); // 2 second delay before starting the apply process
+  }, 1000); // 1 second delay before starting the apply process
 }

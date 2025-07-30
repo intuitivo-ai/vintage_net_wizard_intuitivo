@@ -237,13 +237,10 @@ defmodule VintageNetWizard.Web.ApiV1 do
       true ->
         Logger.info("API_V1_APPLY_SUCCESS - Configuration apply will start in background")
         
-        # Send immediate response to avoid connection loss
-        send_json(conn, 202, "")
-        
-        # Apply configuration in background after response is sent
-        Task.Supervisor.start_child(VintageNetWizard.TaskSupervisor, fn ->
+        # Start the background task and ensure it's started before responding
+        task_result = Task.Supervisor.start_child(VintageNetWizard.TaskSupervisor, fn ->
           # Give time for the HTTP response to be sent
-          :timer.sleep(1000)
+          :timer.sleep(500)  # Reduced from 1000ms to 500ms
           
           Logger.info("API_V1_APPLY_BACKGROUND - Starting actual configuration apply")
           
@@ -255,6 +252,20 @@ defmodule VintageNetWizard.Web.ApiV1 do
               Logger.error("API_V1_APPLY_BACKGROUND_ERROR - Configuration apply failed: #{inspect(reason)}")
           end
         end)
+        
+        case task_result do
+          {:ok, _pid} ->
+            Logger.info("API_V1_APPLY_TASK_STARTED - Background task initiated successfully")
+            send_json(conn, 202, "")
+            
+          {:error, reason} ->
+            Logger.error("API_V1_APPLY_TASK_ERROR - Failed to start background task: #{inspect(reason)}")
+            json = %{
+              error: "task_error",
+              message: "Failed to start configuration process"
+            } |> Jason.encode!()
+            send_json(conn, 500, json)
+        end
     end
   end
 
