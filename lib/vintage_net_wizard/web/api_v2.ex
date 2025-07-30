@@ -125,6 +125,76 @@ defmodule VintageNetWizard.Web.ApiV2 do
     send_json(conn, 200, %{networks: networks})
   end
 
+  post "/networks/force-scan" do
+
+    Logger.info("API_V2_POST_NETWORKS_FORCE_SCAN_REQUEST")
+
+    # Force a scan for problematic hardware like Realtek
+    BackendServer.force_scan()
+    
+    # Wait a bit for the scan to complete
+    Process.sleep(2000)
+    
+    networks =
+      BackendServer.access_points()
+      |> VintageNetWiFi.summarize_access_points()
+      |> Enum.map(fn ap ->
+        %{
+          ssid: ap.ssid,
+          signal_percent: ap.signal_percent,
+          frequency: ap.frequency,
+          band: ap.band,
+          channel: ap.channel,
+          flags: Enum.map(ap.flags, &to_string/1)
+        }
+      end)
+
+    response = %{
+      networks: networks,
+      forced_scan: true,
+      timestamp: DateTime.utc_now() |> DateTime.to_iso8601()
+    }
+
+    send_json(conn, 200, response)
+  end
+
+  get "/networks/diagnostic" do
+
+    Logger.info("API_V2_GET_NETWORKS_DIAGNOSTIC_REQUEST")
+
+    # Get basic WiFi interface info
+    ifname = BackendServer.get_ifname()
+    
+    # Get VintageNet interface status
+    vintage_net_status = VintageNet.get(["interface", ifname])
+    connection_status = VintageNet.get(["interface", ifname, "connection"])
+    
+    # Get access points
+    networks = BackendServer.access_points()
+    summarized_networks = VintageNetWiFi.summarize_access_points(networks)
+    
+    response = %{
+      interface: ifname,
+      vintage_net_status: vintage_net_status,
+      connection_status: connection_status,
+      raw_access_points_count: length(networks),
+      summarized_networks_count: length(summarized_networks),
+      networks: Enum.map(summarized_networks, fn ap ->
+        %{
+          ssid: ap.ssid,
+          signal_percent: ap.signal_percent,
+          frequency: ap.frequency,
+          band: ap.band,
+          channel: ap.channel,
+          flags: Enum.map(ap.flags, &to_string/1)
+        }
+      end),
+      timestamp: DateTime.utc_now() |> DateTime.to_iso8601()
+    }
+
+    send_json(conn, 200, response)
+  end
+
   get "/configuration/status" do
 
     Logger.info("API_V2_GET_CONFIGURATION_STATUS_REQUEST")
