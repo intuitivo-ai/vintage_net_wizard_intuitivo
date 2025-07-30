@@ -208,12 +208,11 @@ defmodule VintageNetWizard.Web.ApiV1 do
   post "/apply" do
     Logger.info("API_V1_APPLY_REQUEST - Starting configuration apply")
     
-    case BackendServer.apply() do
-      :ok ->
-        Logger.info("API_V1_APPLY_SUCCESS - Configuration apply started successfully")
-        send_json(conn, 202, "")
-
-      {:error, :no_configurations} ->
+    # First check if we have configurations to apply
+    configurations = BackendServer.configurations()
+    
+    cond do
+      configurations == [] ->
         Logger.warning("API_V1_APPLY_ERROR - No configurations found")
         json =
           %{
@@ -224,27 +223,27 @@ defmodule VintageNetWizard.Web.ApiV1 do
 
         send_json(conn, 404, json)
         
-      {:error, :invalid_state} ->
-        Logger.error("API_V1_APPLY_ERROR - Backend in invalid state")
-        json =
-          %{
-            error: "invalid_state",
-            message: "Backend is in invalid state. Try resetting the configuration."
-          }
-          |> Jason.encode!()
-
-        send_json(conn, 500, json)
+      true ->
+        Logger.info("API_V1_APPLY_SUCCESS - Configuration apply will start in background")
         
-      {:error, reason} ->
-        Logger.error("API_V1_APPLY_ERROR - Backend apply failed: #{inspect(reason)}")
-        json =
-          %{
-            error: "backend_error",
-            message: "Failed to apply configuration: #{inspect(reason)}"
-          }
-          |> Jason.encode!()
-
-        send_json(conn, 500, json)
+        # Send immediate response to avoid connection loss
+        send_json(conn, 202, "")
+        
+        # Apply configuration in background after response is sent
+        Task.Supervisor.start_child(VintageNetWizard.TaskSupervisor, fn ->
+          # Give time for the HTTP response to be sent
+          :timer.sleep(1000)
+          
+          Logger.info("API_V1_APPLY_BACKGROUND - Starting actual configuration apply")
+          
+          case BackendServer.apply() do
+            :ok ->
+              Logger.info("API_V1_APPLY_BACKGROUND_SUCCESS - Configuration applied successfully")
+              
+            {:error, reason} ->
+              Logger.error("API_V1_APPLY_BACKGROUND_ERROR - Configuration apply failed: #{inspect(reason)}")
+          end
+        end)
     end
   end
 
