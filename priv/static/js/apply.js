@@ -189,11 +189,42 @@ function applyConfiguration(title, button_color) {
     
     // Then, after showing success, make the API call to actually complete
     setTimeout(() => {
-      fetch("/api/v1/complete").then((resp) => {
-        console.log("Configuration completed successfully");
-        // Optionally redirect or show additional message
-      }).catch((error) => {
+      console.log("Calling complete endpoint...");
+      
+      fetch("/api/v1/complete", {
+        method: "GET"
+      })
+      .then((resp) => {
+        if (!resp.ok) {
+          throw new Error(`HTTP ${resp.status}`);
+        }
+        return resp.json();
+      })
+      .then((data) => {
+        console.log("Configuration completed successfully:", data);
+        
+        // Update the UI to show final completion message
+        state.targetElem.innerHTML = `
+          <div class="text-center">
+            <h3 class="text-success">✓ Setup Complete!</h3>
+            <p>${data.message || 'Your device has been successfully configured.'}</p>
+            <p class="text-muted">The wizard is shutting down. You can close this page.</p>
+            <p class="text-muted">Your device will reconnect to the configured network shortly.</p>
+          </div>
+        `;
+      })
+      .catch((error) => {
         console.error("Error completing configuration:", error);
+        
+        // Show error but still indicate the process might have worked
+        state.targetElem.innerHTML = `
+          <div class="text-center">
+            <h3 class="text-warning">⚠ Completion Error</h3>
+            <p>There was an issue finalizing the setup, but your configuration may still be active.</p>
+            <p class="text-muted">Error: ${error.message}</p>
+            <p class="text-muted">You can try closing this page and checking if your device connected to the network.</p>
+          </div>
+        `;
       });
     }, 2000); // Show success message for 2 seconds before actually completing
   }

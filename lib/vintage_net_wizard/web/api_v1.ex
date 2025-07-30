@@ -124,17 +124,28 @@ defmodule VintageNetWizard.Web.ApiV1 do
   end
 
   get "/complete" do
+    Logger.info("API_V1_COMPLETE_REQUEST - Completing configuration and stopping server")
+    
     :ok = BackendServer.complete()
+
+    # Prepare successful response with proper JSON
+    response = %{
+      status: "success",
+      message: "Configuration completed successfully. Server shutting down.",
+      timestamp: DateTime.utc_now() |> DateTime.to_iso8601()
+    }
 
     _ =
       Task.Supervisor.start_child(VintageNetWizard.TaskSupervisor, fn ->
         # We don't want to stop the server before we
         # send the response back.
         :timer.sleep(3000)
-        #Endpoint.stop_server(:shutdown)
+        Logger.info("API_V1_COMPLETE_SHUTDOWN - Stopping server after successful completion")
+        Endpoint.stop_server(:shutdown)
       end)
-
-    send_json(conn, 202, "")
+    
+    # Send response at the end
+    send_json(conn, 200, Jason.encode!(response))
   end
 
   get "/configurations" do
