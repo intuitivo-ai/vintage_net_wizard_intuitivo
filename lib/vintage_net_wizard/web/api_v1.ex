@@ -124,17 +124,30 @@ defmodule VintageNetWizard.Web.ApiV1 do
   end
 
   get "/complete" do
-    :ok = BackendServer.complete()
+    Logger.info("API_V1_COMPLETE_REQUEST - Completing configuration and stopping server")
+
+    # Prepare successful response with proper JSON
+    response = %{
+      status: "success",
+      message: "Configuration completed successfully. Server shutting down.",
+      timestamp: DateTime.utc_now() |> DateTime.to_iso8601()
+    }
 
     _ =
       Task.Supervisor.start_child(VintageNetWizard.TaskSupervisor, fn ->
         # We don't want to stop the server before we
         # send the response back.
         :timer.sleep(3000)
-        #Endpoint.stop_server(:shutdown)
+        Logger.info("API_V1_COMPLETE_BACKGROUND - Executing BackendServer.complete()")
+        :ok = BackendServer.complete()
+        
+        :timer.sleep(2000)
+        Logger.info("API_V1_COMPLETE_SHUTDOWN - Stopping server after successful completion")
+        Endpoint.stop_server(:shutdown)
       end)
-
-    send_json(conn, 202, "")
+    
+    # Send response at the end
+    send_json(conn, 200, Jason.encode!(response))
   end
 
   get "/configurations" do
@@ -206,11 +219,14 @@ defmodule VintageNetWizard.Web.ApiV1 do
   end
 
   post "/apply" do
-    case BackendServer.apply() do
-      :ok ->
-        send_json(conn, 202, "")
-
-      {:error, :no_configurations} ->
+    Logger.info("API_V1_APPLY_REQUEST - Starting configuration apply")
+    
+    # First check if we have configurations to apply
+    configurations = BackendServer.configurations()
+    
+    cond do
+      configurations == [] ->
+        Logger.warning("API_V1_APPLY_ERROR - No configurations found")
         json =
           %{
             error: "no_configurations",
@@ -219,6 +235,39 @@ defmodule VintageNetWizard.Web.ApiV1 do
           |> Jason.encode!()
 
         send_json(conn, 404, json)
+        
+      true ->
+        Logger.info("API_V1_APPLY_SUCCESS - Configuration apply will start in background")
+        
+        # Start the background task and ensure it's started before responding
+        task_result = Task.Supervisor.start_child(VintageNetWizard.TaskSupervisor, fn ->
+          # Give time for the HTTP response to be sent
+          :timer.sleep(500)  # Reduced from 1000ms to 500ms
+          
+          Logger.info("API_V1_APPLY_BACKGROUND - Starting actual configuration apply")
+          
+          case BackendServer.apply() do
+            :ok ->
+              Logger.info("API_V1_APPLY_BACKGROUND_SUCCESS - Configuration applied successfully")
+              
+            {:error, reason} ->
+              Logger.error("API_V1_APPLY_BACKGROUND_ERROR - Configuration apply failed: #{inspect(reason)}")
+          end
+        end)
+        
+        case task_result do
+          {:ok, _pid} ->
+            Logger.info("API_V1_APPLY_TASK_STARTED - Background task initiated successfully")
+            send_json(conn, 202, "")
+            
+          {:error, reason} ->
+            Logger.error("API_V1_APPLY_TASK_ERROR - Failed to start background task: #{inspect(reason)}")
+            json = %{
+              error: "task_error",
+              message: "Failed to start configuration process"
+            } |> Jason.encode!()
+            send_json(conn, 500, json)
+        end
     end
   end
 

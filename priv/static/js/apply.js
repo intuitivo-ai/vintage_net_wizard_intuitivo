@@ -10,44 +10,121 @@ function applyConfiguration(title, button_color) {
     completed: false,
     ssid: document.getElementById("ssid").getAttribute("value"),
     title: title,
+    isPolling: false, // Flag to prevent multiple concurrent polling requests
+    pollingTimerId: null, // Store the ID of the polling setTimeout
   };
 
-  function runGetStatus() {
-    setTimeout(getStatus, 1000);
+  function runGetStatus(delay = 1000) {
+    // Clear any existing polling timer to prevent multiple queues
+    if (state.pollingTimerId) {
+      clearTimeout(state.pollingTimerId);
+      state.pollingTimerId = null;
+    }
+    state.pollingTimerId = setTimeout(getStatus, delay);
   }
 
   function getStatus() {
-    fetch("/api/v1/configuration/status")
-      .then((resp) => resp.json())
+    // If a request is already in flight, do not start another one.
+    // The next poll will be scheduled by the completion of the current one.
+    if (state.isPolling) {
+      console.log("getStatus: Request already in progress, waiting for current one to complete.");
+      return;
+    }
+
+    state.isPolling = true;
+    
+    // Add timeout to prevent hanging requests
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => {
+      console.log("Status request timeout - aborting");
+      controller.abort();
+    }, 8000); // Reduced from 10s to 8s
+    
+    fetch("/api/v1/configuration/status", {
+      signal: controller.signal
+    })
+      .then((resp) => {
+        clearTimeout(timeoutId);
+        state.isPolling = false;
+        
+        if (!resp.ok) {
+          throw new Error(`HTTP ${resp.status}`);
+        }
+        return resp.json();
+      })
       .then(handleStatusResponse)
-      .catch(handleNetworkErrorResponse);
+      .catch((error) => {
+        clearTimeout(timeoutId);
+        state.isPolling = false;
+        
+        // Handle network change errors and resource errors during polling
+        if (error.message.includes("NetworkError") || 
+            error.message.includes("ERR_NETWORK_CHANGED") ||
+            error.message.includes("ERR_INSUFFICIENT_RESOURCES") ||
+            error.message.includes("Failed to fetch") ||
+            error.message.includes("aborted")) {
+          
+          console.log("Network/Resource error during polling - continuing to retry:", error.message);
+          handleNetworkErrorResponse(error);
+        } else {
+          console.error("Status polling error:", error);
+          handleNetworkErrorResponse(error);
+        }
+      });
   }
 
   function handleStatusResponse(status) {
+    console.log("Status received:", status);
+    
     switch (status) {
       case "not_configured":
         state.dots = state.dots + ".";
+        if (state.dots.length > 10) {
+          state.dots = ""; // Reset dots to prevent infinite growth
+        }
         render(state);
+        runGetStatus(); // Continue polling
         break;
       case "good":
-        if (!status.completed) {
-          state.view = "configurationGood";
-          state.configurationStatus = status;
-          state.completeTimer = setTimeout(complete, 60000);
-          render(state);
+        console.log("Configuration successful - stopping polling");
+        state.view = "configurationGood";
+        state.configurationStatus = status;
+        state.completeTimer = setTimeout(complete, 60000);
+        render(state);
+        // Explicitly clear any pending polling timer when a final status is reached
+        if (state.pollingTimerId) {
+          clearTimeout(state.pollingTimerId);
+          state.pollingTimerId = null;
         }
-        break;
+        return; // Important: exit without continuing polling
       case "bad":
+        console.log("Configuration failed - stopping polling");
         state.view = "configurationBad";
         state.configurationStatus = status;
         render(state);
+        // Explicitly clear any pending polling timer when a final status is reached
+        if (state.pollingTimerId) {
+          clearTimeout(state.pollingTimerId);
+          state.pollingTimerId = null;
+        }
+        return; // Important: exit without continuing polling
+      default:
+        console.log("Unknown status:", status);
+        runGetStatus(); // Continue polling for unknown status
         break;
     }
   }
 
   function handleNetworkErrorResponse(e) {
+    console.log("Network error:", e);
     state.dots = state.dots + ".";
+    if (state.dots.length > 15) {
+      state.dots = ""; // Reset dots to prevent infinite growth
+    }
     render(state);
+    
+    // Add extra delay for network/resource errors to prevent overwhelming the server
+    runGetStatus(2000); // Wait 2 seconds before retrying on network errors
   }
 
   function createCompleteLink({ targetElem, view }) {
@@ -86,11 +163,18 @@ function applyConfiguration(title, button_color) {
         return [
           `
         <p>Please wait while the ${title} verifies your configuration.</p>
-
+        
         <p>${dots}</p>
+        
+        <p><strong>What's happening:</strong></p>
+        <ul class="text-left">
+          <li>Device is connecting to your WiFi network</li>
+          <li>Verifying network credentials</li>
+          <li>Testing internet connectivity</li>
+        </ul>
 
-        <p>If this page doesn't update in 15-30 seconds, check that you're connected to
-        the access point named "<b>${ssid}</b>"</p>
+        <p class="text-muted">If this page doesn't update in 15-30 seconds, check that you're connected to
+        the access point named "<b>${ssid}</b>". Network changes during configuration are normal.</p>
         `,
           runGetStatus,
         ];
@@ -122,15 +206,94 @@ function applyConfiguration(title, button_color) {
           createCompleteLink,
         ];
       case "complete":
-        return ["Configuration complete", null];
+        return [
+          `
+          <div class="text-center">
+            <h3 class="text-success">✓ Configuration Complete!</h3>
+            <p>Your device has been successfully configured and will now connect to your network.</p>
+            <p class="text-muted">You can close this page or wait for automatic redirection...</p>
+          </div>
+          `, 
+          null
+        ];
     }
   }
 
   function complete() {
-    fetch("/api/v1/complete").then((resp) => {
-      state.view = "complete";
-      render(state);
-    });
+    // Prevent multiple executions
+    if (state.completed) {
+      console.log("Complete already called, ignoring");
+      return;
+    }
+    
+    state.completed = true;
+    console.log("Starting completion process");
+    
+    // Clear any remaining timers
+    if (state.completeTimer) {
+      clearTimeout(state.completeTimer);
+      state.completeTimer = null;
+    }
+    // Also clear polling timer if it's still active for some reason
+    if (state.pollingTimerId) {
+      clearTimeout(state.pollingTimerId);
+      state.pollingTimerId = null;
+    }
+    
+    // First, show the success message immediately
+    state.view = "complete";
+    render(state);
+    
+    // Then, after showing success, make the API call to actually complete
+    setTimeout(() => {
+      console.log("Calling complete endpoint...");
+      
+      // Add timeout to prevent hanging requests
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => {
+        console.log("Complete request timeout - aborting");
+        controller.abort();
+      }, 5000); // 5 second timeout for complete
+      
+      fetch("/api/v1/complete", {
+        method: "GET",
+        signal: controller.signal
+      })
+      .then((resp) => {
+        clearTimeout(timeoutId);
+        if (!resp.ok) {
+          throw new Error(`HTTP ${resp.status}`);
+        }
+        return resp.json();
+      })
+      .then((data) => {
+        console.log("Configuration completed successfully:", data);
+        
+        // Update the UI to show final completion message
+        state.targetElem.innerHTML = `
+          <div class="text-center">
+            <h3 class="text-success">✓ Setup Complete!</h3>
+            <p>${data.message || 'Your device has been successfully configured.'}</p>
+            <p class="text-muted">The wizard is shutting down. You can close this page.</p>
+            <p class="text-muted">Your device will reconnect to the configured network shortly.</p>
+          </div>
+        `;
+      })
+      .catch((error) => {
+        clearTimeout(timeoutId);
+        console.error("Error completing configuration:", error);
+        
+        // Show error but still indicate the process might have worked
+        state.targetElem.innerHTML = `
+          <div class="text-center">
+            <h3 class="text-warning">⚠ Completion Error</h3>
+            <p>There was an issue finalizing the setup, but your configuration may still be active.</p>
+            <p class="text-muted">Error: ${error.message}</p>
+            <p class="text-muted">You can try closing this page and checking if your device connected to the network.</p>
+          </div>
+        `;
+      });
+    }, 2000); // Show success message for 2 seconds before actually completing
   }
 
   function render(state) {
@@ -142,10 +305,111 @@ function applyConfiguration(title, button_color) {
     }
   }
 
-  fetch("/api/v1/apply", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-  }).then((resp) => runGetStatus());
+  // Show initial message that configuration is starting
+  state.targetElem.innerHTML = `
+    <p>Starting configuration process...</p>
+    <p>Preparing to apply network settings...</p>
+    <p class="text-muted">Please wait a moment...</p>
+  `;
+
+  // Add delay before making the apply request to ensure stability
+  setTimeout(() => {
+    console.log("Starting apply request after delay");
+    
+    // Add timeout to the apply fetch to handle network issues
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => {
+      console.log("Apply request timeout - aborting");
+      controller.abort();
+    }, 15000); // 15 second timeout for apply
+
+    fetch("/api/v1/apply", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      signal: controller.signal
+    })
+  .then((resp) => {
+    clearTimeout(timeoutId);
+    console.log("Apply response status:", resp.status, "OK:", resp.ok);
+    
+    if (!resp.ok) {
+      if (resp.status === 404) {
+        // No configurations to apply
+        console.log("No configurations found to apply");
+        state.view = "configurationBad";
+        state.targetElem.innerHTML = `
+          <p>No network configurations found to apply.</p>
+          <p>Please go back and configure at least one network.</p>
+          <a class="btn btn-primary" href="/">Configure Networks</a>
+        `;
+        return null; // Return null instead of undefined to handle properly
+      }
+      // Log the specific HTTP error
+      console.error("HTTP Error:", resp.status, resp.statusText);
+      throw new Error(`HTTP ${resp.status}: ${resp.statusText}`);
+    }
+    return resp;
+  })
+  .then((resp) => {
+    // Check if resp is not null (could be null from 404 handling above)
+    if (resp) {
+      console.log("Apply successful, starting status polling");
+      runGetStatus(); // Start polling with default 1s delay
+    }
+  })
+  .catch((error) => {
+    clearTimeout(timeoutId);
+    console.error("Apply error details:", error);
+    console.error("Error type:", error.constructor.name);
+    console.error("Error message:", error.message);
+    
+    // Check for network change/abort errors specifically
+    if (error.message.includes("NetworkError") || 
+        error.message.includes("ERR_NETWORK_CHANGED") ||
+        error.message.includes("ERR_ABORTED") ||
+        error.message.includes("Failed to fetch") ||
+        error.message.includes("Load failed") ||  // Add Safari specific error
+        error.name === "AbortError") {
+      
+      console.log("Network change/abort detected - this is normal during WiFi configuration");
+      
+      // Show a message indicating this is expected and start polling
+      state.targetElem.innerHTML = `
+        <p>Configuration in progress...</p>
+        <p>The device is switching networks. Please wait while we verify the connection.</p>
+        <p class="text-muted">This may take 15-30 seconds.</p>
+      `;
+      
+      // Start polling since the apply probably worked
+      setTimeout(() => {
+        runGetStatus(); // Start polling with default 1s delay
+      }, 2000); // Wait 2 seconds then start polling
+      
+      return; // Don't show error message
+    }
+    
+    let errorDetails = error.message;
+    let troubleshooting = "";
+    
+    // Provide specific troubleshooting based on error type
+    if (error.message.includes("HTTP 500")) {
+      troubleshooting = "<p><strong>Possible causes:</strong> Internal server error, check device logs.</p>";
+    } else if (error.message.includes("HTTP 404")) {
+      troubleshooting = "<p><strong>Possible causes:</strong> No network configurations found.</p>";
+    } else if (error.message.includes("timeout") || error.message.includes("aborted")) {
+      troubleshooting = "<p><strong>Possible causes:</strong> Request timeout, device is busy.</p>";
+    }
+    
+    state.view = "configurationBad";
+    state.targetElem.innerHTML = `
+      <p>Failed to start configuration process.</p>
+      <p><strong>Error:</strong> ${errorDetails}</p>
+      ${troubleshooting}
+      <p>Check the browser console for more details.</p>
+      <a class="btn btn-primary" href="/">Try Again</a>
+    `;
+  });
+  }, 1000); // 1 second delay before starting the apply process
 }

@@ -3,6 +3,8 @@ defmodule VintageNetWizard.APMode do
   This module contains utilities for configuration VintageNet in AP Mode
   """
 
+  require Logger
+
   @default_hostname "vintage_net_wizard"
   @default_dns_name "wifi.config"
   @default_subnet {192, 168, 0, 0}
@@ -20,7 +22,24 @@ defmodule VintageNetWizard.APMode do
       |> VintageNet.IP.ip_to_tuple!()
 
     config = ap_mode_configuration(hostname, our_name, subnet)
-    VintageNet.configure(ifname, config, persist: false)
+    
+    # Add retry logic for problematic hardware like Realtek
+    case VintageNet.configure(ifname, config, persist: false) do
+      :ok -> 
+        Logger.info("AP mode configured successfully")
+        :ok
+      {:error, reason} ->
+        Logger.warn("AP mode configuration failed, retrying: #{inspect(reason)}")
+        Process.sleep(2000)
+        case VintageNet.configure(ifname, config, persist: false) do
+          :ok -> 
+            Logger.info("AP mode configured successfully on retry")
+            :ok
+          {:error, retry_reason} ->
+            Logger.error("AP mode configuration failed after retry: #{inspect(retry_reason)}")
+            {:error, retry_reason}
+        end
+    end
   end
 
   @doc """

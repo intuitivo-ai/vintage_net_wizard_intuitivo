@@ -60,7 +60,8 @@ defmodule VintageNetWizard.Backend.Default do
 
   @impl VintageNetWizard.Backend
   def start_scan(state) do
-    _ = scan(state)
+    # Try scanning with retries for problematic hardware like Realtek
+    _ = scan_with_retries(state, 3)
     scan_ref = start_scan_timer()
     %{state | scan_ref: scan_ref}
   end
@@ -99,13 +100,20 @@ defmodule VintageNetWizard.Backend.Default do
 
   def handle_info(
         {VintageNet, ["interface", ifname, "connection"], _, connectivity, _},
-        %{state: :applying, data: %{configuration_status: :good} = data, ifname: ifname} = state
+        %{state: :applying, data: %{configuration_status: :good} = data, ifname: ifname, ap_ifname: ap_ifname} = state
       )
       when connectivity in [:lan, :internet] do
     # Everything connected, so cancel our timeout
     _ = Process.cancel_timer(data.apply_configuration_timer)
 
-    {:noreply, %{state | state: :idle, data: Map.delete(data, :apply_configuration_timer)}}
+    # Even when configuration_status is already :good, we need to return to AP mode
+    # to allow for additional configurations
+    Process.sleep(4_000)
+    ok = APMode.into_ap_mode(ap_ifname)
+    
+    Logger.info("BACKEND: Configuration successful (already good), returning to AP mode")
+
+    {:noreply, %{state | state: :configuring, data: Map.delete(data, :apply_configuration_timer)}}
   end
 
   def handle_info(
@@ -141,12 +149,13 @@ defmodule VintageNetWizard.Backend.Default do
   end
 
   def handle_info(:run_scan, state) do
-    case scan(state) do
+    case scan_with_retries(state, 2) do
       :ok ->
         {:noreply, %{state | scan_ref: start_scan_timer()}}
 
       _ ->
-        {:noreply, state}
+        # If scanning fails, try again with a longer delay
+        {:noreply, %{state | scan_ref: start_scan_timer_long()}}
     end
   end
 
@@ -188,13 +197,7 @@ defmodule VintageNetWizard.Backend.Default do
 
             Logger.info("API_V2_CONFIGURATION_WIFI_STATIC_REQUEST is DHCP")
 
-            VintageNet.configure(state.ifname, %{
-            type: VintageNetWiFi,
-            vintage_net_wifi: %{
-              networks: wifi_configurations
-            },
-            ipv4: %{method: :dhcp}
-          })
+            configure_wifi_with_retry(state.ifname, wifi_configurations, %{method: :dhcp})
           "static" -> map_with_atom = %{
             method: String.to_existing_atom(decoded_map["method"]),
             address: decoded_map["address"],
@@ -206,47 +209,70 @@ defmodule VintageNetWizard.Backend.Default do
 
         Logger.info("API_V2_CONFIGURATION_WIFI_STATIC_REQUEST is #{inspect(map_with_atom)} #{inspect(wifi_configurations)}")
 
-        VintageNet.configure(state.ifname, %{
-          type: VintageNetWiFi,
-          vintage_net_wifi: %{
-            networks: wifi_configurations
-          },
-          ipv4: map_with_atom
-        })
+        configure_wifi_with_retry(state.ifname, wifi_configurations, map_with_atom)
         end
 
       else
 
         Logger.info("API_V2_CONFIGURATION_WIFI_STATIC_REQUEST is DHCP2")
 
-        VintageNet.configure(state.ifname, %{
-          type: VintageNetWiFi,
-          vintage_net_wifi: %{
-            networks: wifi_configurations
-          },
-          ipv4: %{method: :dhcp}
-        })
+        configure_wifi_with_retry(state.ifname, wifi_configurations, %{method: :dhcp})
       end
       {:error, _posix} ->
 
         Logger.info("API_V2_CONFIGURATION_WIFI_STATIC_REQUEST is DHCP3")
 
-        VintageNet.configure(state.ifname, %{
-        type: VintageNetWiFi,
-        vintage_net_wifi: %{
-          networks: wifi_configurations
-        },
-        ipv4: %{method: :dhcp}
-      })
+        configure_wifi_with_retry(state.ifname, wifi_configurations, %{method: :dhcp})
     end
-
 
   end
 
+  # Add WiFi configuration with retry for problematic hardware like Realtek
+  defp configure_wifi_with_retry(ifname, wifi_configurations, ipv4_config) do
+    config = %{
+      type: VintageNetWiFi,
+      vintage_net_wifi: %{
+        networks: wifi_configurations
+      },
+      ipv4: ipv4_config
+    }
+
+    case VintageNet.configure(ifname, config) do
+      :ok -> 
+        :ok
+      {:error, reason} ->
+        Logger.warn("WiFi configuration failed, retrying: #{inspect(reason)}")
+        # For Realtek and other problematic hardware, wait a bit and retry
+        Process.sleep(2000)
+        case VintageNet.configure(ifname, config) do
+          :ok -> :ok
+          {:error, retry_reason} ->
+            Logger.error("WiFi configuration failed after retry: #{inspect(retry_reason)}")
+            :ok # Don't fail completely, let the timeout handle it
+        end
+    end
+  end
+
   defp start_scan_timer(), do: Process.send_after(self(), :run_scan, 20_000)
+  defp start_scan_timer_long(), do: Process.send_after(self(), :run_scan, 60_000)
 
   defp scan(%{state: :configuring, ifname: ifname}), do: VintageNet.scan(ifname)
   defp scan(_), do: {:error, :invalid_state}
+
+  defp scan_with_retries(state, retries) do
+    case scan(state) do
+      :ok -> :ok
+      _ ->
+        if retries > 0 do
+          Logger.warn("Retrying scan due to failure. Retries left: #{retries}")
+          Process.sleep(1000) # Wait a bit before retrying
+          scan_with_retries(state, retries - 1)
+        else
+          Logger.error("Failed to scan after multiple retries.")
+          :error
+        end
+    end
+  end
 
   defp initial_state(ifname, ap_ifname) do
     %{

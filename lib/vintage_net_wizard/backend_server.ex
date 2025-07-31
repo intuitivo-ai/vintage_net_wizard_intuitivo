@@ -98,9 +98,17 @@ defmodule VintageNetWizard.BackendServer do
   end
 
   @doc """
-  List out access points
+  Force a manual scan for access points (useful for problematic hardware)
   """
-  @spec access_points() :: [AccessPoint.t()]
+  @spec force_scan() :: :ok
+  def force_scan() do
+    GenServer.cast(__MODULE__, :force_scan)
+  end
+
+  @doc """
+  Get access points from the backend
+  """
+  @spec access_points() :: [VintageNetWiFi.AccessPoint.t()]
   def access_points() do
     GenServer.call(__MODULE__, :access_points)
   end
@@ -394,6 +402,18 @@ defmodule VintageNetWizard.BackendServer do
         %State{backend: backend, backend_state: backend_state} = state
       ) do
     access_points = backend.access_points(backend_state)
+    Logger.info("BACKEND_SERVER: Access points requested - Found #{length(access_points)} networks")
+    
+    if length(access_points) == 0 do
+      Logger.warn("BACKEND_SERVER: No access points found - this may indicate scanning issues with hardware")
+      Logger.info("BACKEND_SERVER: Triggering additional scan attempt")
+      # Force a scan if no access points are found
+      case VintageNet.scan(state.ifname) do
+        :ok -> Logger.info("BACKEND_SERVER: Additional scan triggered successfully")
+        {:error, reason} -> Logger.error("BACKEND_SERVER: Additional scan failed: #{inspect(reason)}")
+      end
+    end
+    
     {:reply, access_points, state}
   end
 
@@ -486,6 +506,7 @@ defmodule VintageNetWizard.BackendServer do
         %State{configurations: wifi_configs} = state
       )
       when wifi_configs == %{} do
+    Logger.warning("BACKEND_SERVER: Apply failed - No configurations found")
     {:reply, {:error, :no_configurations}, state}
   end
 
@@ -499,10 +520,13 @@ defmodule VintageNetWizard.BackendServer do
           ifname: ifname
         } = state
       ) do
+    Logger.info("BACKEND_SERVER: Apply starting - Backend state: #{inspect(backend_state.state)}, Configs: #{map_size(wifi_configs)}")
+    
     old_connection = old_connection(ifname)
 
     case backend.apply(build_config_list(wifi_configs), backend_state) do
       {:ok, new_backend_state} ->
+        Logger.info("BACKEND_SERVER: Apply successful - New backend state: #{inspect(new_backend_state.state)}")
         updated_state = %{state | backend_state: new_backend_state}
         # If applying the new configuration does not change the connection,
         # send a message to that effect so the Wizard does not timeout
@@ -511,6 +535,7 @@ defmodule VintageNetWizard.BackendServer do
         {:reply, :ok, updated_state}
 
       {:error, _} = error ->
+        Logger.error("BACKEND_SERVER: Apply failed - Error: #{inspect(error)}, Backend state: #{inspect(backend_state.state)}")
         {:reply, error, state}
     end
   end
@@ -610,7 +635,9 @@ defmodule VintageNetWizard.BackendServer do
   end
 
   @impl GenServer
-  def handle_cast({:start_cams_ap, _value}, state) do
+  def handle_cast({:start_cams_ap, _value}, %State{backend: backend, backend_state: backend_state} = state) do
+
+    Logger.info("BACKEND_SERVER: Starting AP mode - Current backend state: #{inspect(backend_state.state)}")
 
     In2Firmware.Services.Operations.ReviewHW.get_lock_type()
     In2Firmware.Services.Operations.ReviewHW.get_profile()
@@ -618,15 +645,11 @@ defmodule VintageNetWizard.BackendServer do
     In2Firmware.Services.Operations.ReviewHW.get_state_comm()
     In2Firmware.Services.Operations.ReviewHW.get_init_state()
 
-    #if value == :ap do
-      #send(self(), :re_init_stream_gst)
-    #  send(self(), :init_stream_gst)
-    #else
-     #Process.send_after(self(), :re_init_stream_gst, 10_000)
-    # Process.send_after(self(), :init_stream_gst, 5_000)
-    #end
+    # Reset backend state to allow new configurations when entering AP mode
+    new_backend_state = backend.reset(backend_state)
+    Logger.info("BACKEND_SERVER: Backend state reset to: #{inspect(new_backend_state.state)} for new AP mode session")
 
-    {:noreply,  state}
+    {:noreply, %{state | backend_state: new_backend_state}}
   end
 
   @impl GenServer
@@ -927,8 +950,13 @@ defmodule VintageNetWizard.BackendServer do
         # idle state with good configuration means we've completed setup
         # and wizard has been shut down. So let's clear configurations
         # so aren't hanging around in memory
-
-        {:noreply, %{state | configurations: %{}, backend_state: new_backend_state}}
+        # 
+        # COMMENTED OUT: Don't clear configurations to allow reconfiguration
+        # This was causing issues when trying to configure WiFi a second time
+        # {:noreply, %{state | configurations: %{}, backend_state: new_backend_state}}
+        
+        Logger.info("BACKEND_SERVER: Configuration successful, maintaining configurations for potential reconfiguration")
+        {:noreply, %{state | backend_state: new_backend_state}}
 
       {:noreply, new_backend_state} ->
         {:noreply, %{state | backend_state: new_backend_state}}
@@ -1268,12 +1296,35 @@ defmodule VintageNetWizard.BackendServer do
      }}
   end
 
+  @impl GenServer
   def handle_call(:get_wifi_networks, _from, state) do
     wifi_networks = get_wifi_networks(state)
     {:reply, wifi_networks, state}
   end
 
+  @impl GenServer
   def handle_call(:get_ap_ifname, _from, %State{ap_ifname: ap_ifname} = state) do
     {:reply, ap_ifname, state}
+  end
+
+  @impl GenServer
+  def handle_cast(:force_scan, %State{backend: backend, backend_state: backend_state} = state) do
+    Logger.info("BACKEND_SERVER: Force scanning for access points")
+    
+    # Force a scan even if it fails
+    case VintageNet.scan(state.ifname) do
+      :ok -> 
+        Logger.info("BACKEND_SERVER: Force scan successful")
+      {:error, reason} ->
+        Logger.warn("BACKEND_SERVER: Force scan failed: #{inspect(reason)}")
+        # Try one more time with a delay
+        Process.sleep(1000)
+        case VintageNet.scan(state.ifname) do
+          :ok -> Logger.info("BACKEND_SERVER: Force scan successful on retry")
+          {:error, retry_reason} -> Logger.error("BACKEND_SERVER: Force scan failed after retry: #{inspect(retry_reason)}")
+        end
+    end
+    
+    {:noreply, state}
   end
 end
