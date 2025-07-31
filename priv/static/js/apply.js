@@ -11,20 +11,26 @@ function applyConfiguration(title, button_color) {
     ssid: document.getElementById("ssid").getAttribute("value"),
     title: title,
     isPolling: false, // Flag to prevent multiple concurrent polling requests
+    pollingTimerId: null, // Store the ID of the polling setTimeout
   };
 
-  function runGetStatus() {
-    setTimeout(getStatus, 1000);
+  function runGetStatus(delay = 1000) {
+    // Clear any existing polling timer to prevent multiple queues
+    if (state.pollingTimerId) {
+      clearTimeout(state.pollingTimerId);
+      state.pollingTimerId = null;
+    }
+    state.pollingTimerId = setTimeout(getStatus, delay);
   }
 
   function getStatus() {
-    // Prevent multiple concurrent polling requests
+    // If a request is already in flight, do not start another one.
+    // The next poll will be scheduled by the completion of the current one.
     if (state.isPolling) {
-      console.log("Polling already in progress, skipping this request");
-      setTimeout(() => runGetStatus(), 1000); // Retry in 1 second
+      console.log("getStatus: Request already in progress, waiting for current one to complete.");
       return;
     }
-    
+
     state.isPolling = true;
     
     // Add timeout to prevent hanging requests
@@ -85,14 +91,22 @@ function applyConfiguration(title, button_color) {
         state.configurationStatus = status;
         state.completeTimer = setTimeout(complete, 60000);
         render(state);
-        // DO NOT call runGetStatus() - polling stops here
+        // Explicitly clear any pending polling timer when a final status is reached
+        if (state.pollingTimerId) {
+          clearTimeout(state.pollingTimerId);
+          state.pollingTimerId = null;
+        }
         return; // Important: exit without continuing polling
       case "bad":
         console.log("Configuration failed - stopping polling");
         state.view = "configurationBad";
         state.configurationStatus = status;
         render(state);
-        // DO NOT call runGetStatus() - polling stops here
+        // Explicitly clear any pending polling timer when a final status is reached
+        if (state.pollingTimerId) {
+          clearTimeout(state.pollingTimerId);
+          state.pollingTimerId = null;
+        }
         return; // Important: exit without continuing polling
       default:
         console.log("Unknown status:", status);
@@ -110,9 +124,7 @@ function applyConfiguration(title, button_color) {
     render(state);
     
     // Add extra delay for network/resource errors to prevent overwhelming the server
-    setTimeout(() => {
-      runGetStatus();
-    }, 2000); // Wait 2 seconds before retrying on network errors
+    runGetStatus(2000); // Wait 2 seconds before retrying on network errors
   }
 
   function createCompleteLink({ targetElem, view }) {
@@ -222,6 +234,11 @@ function applyConfiguration(title, button_color) {
       clearTimeout(state.completeTimer);
       state.completeTimer = null;
     }
+    // Also clear polling timer if it's still active for some reason
+    if (state.pollingTimerId) {
+      clearTimeout(state.pollingTimerId);
+      state.pollingTimerId = null;
+    }
     
     // First, show the success message immediately
     state.view = "complete";
@@ -231,10 +248,19 @@ function applyConfiguration(title, button_color) {
     setTimeout(() => {
       console.log("Calling complete endpoint...");
       
+      // Add timeout to prevent hanging requests
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => {
+        console.log("Complete request timeout - aborting");
+        controller.abort();
+      }, 5000); // 5 second timeout for complete
+      
       fetch("/api/v1/complete", {
-        method: "GET"
+        method: "GET",
+        signal: controller.signal
       })
       .then((resp) => {
+        clearTimeout(timeoutId);
         if (!resp.ok) {
           throw new Error(`HTTP ${resp.status}`);
         }
@@ -254,6 +280,7 @@ function applyConfiguration(title, button_color) {
         `;
       })
       .catch((error) => {
+        clearTimeout(timeoutId);
         console.error("Error completing configuration:", error);
         
         // Show error but still indicate the process might have worked
@@ -329,7 +356,7 @@ function applyConfiguration(title, button_color) {
     // Check if resp is not null (could be null from 404 handling above)
     if (resp) {
       console.log("Apply successful, starting status polling");
-      runGetStatus();
+      runGetStatus(); // Start polling with default 1s delay
     }
   })
   .catch((error) => {
@@ -357,7 +384,7 @@ function applyConfiguration(title, button_color) {
       
       // Start polling since the apply probably worked
       setTimeout(() => {
-        runGetStatus();
+        runGetStatus(); // Start polling with default 1s delay
       }, 2000); // Wait 2 seconds then start polling
       
       return; // Don't show error message
