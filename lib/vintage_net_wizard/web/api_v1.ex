@@ -125,8 +125,6 @@ defmodule VintageNetWizard.Web.ApiV1 do
 
   get "/complete" do
     Logger.info("API_V1_COMPLETE_REQUEST - Completing configuration and stopping server")
-    
-    :ok = BackendServer.complete()
 
     # Prepare successful response with proper JSON
     response = %{
@@ -140,6 +138,10 @@ defmodule VintageNetWizard.Web.ApiV1 do
         # We don't want to stop the server before we
         # send the response back.
         :timer.sleep(3000)
+        Logger.info("API_V1_COMPLETE_BACKGROUND - Executing BackendServer.complete()")
+        :ok = BackendServer.complete()
+        
+        :timer.sleep(2000)
         Logger.info("API_V1_COMPLETE_SHUTDOWN - Stopping server after successful completion")
         Endpoint.stop_server(:shutdown)
       end)
