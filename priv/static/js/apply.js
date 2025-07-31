@@ -80,16 +80,20 @@ function applyConfiguration(title, button_color) {
         runGetStatus(); // Continue polling
         break;
       case "good":
+        console.log("Configuration successful - stopping polling");
         state.view = "configurationGood";
         state.configurationStatus = status;
         state.completeTimer = setTimeout(complete, 60000);
         render(state);
-        break;
+        // DO NOT call runGetStatus() - polling stops here
+        return; // Important: exit without continuing polling
       case "bad":
+        console.log("Configuration failed - stopping polling");
         state.view = "configurationBad";
         state.configurationStatus = status;
         render(state);
-        break;
+        // DO NOT call runGetStatus() - polling stops here
+        return; // Important: exit without continuing polling
       default:
         console.log("Unknown status:", status);
         runGetStatus(); // Continue polling for unknown status
@@ -204,6 +208,21 @@ function applyConfiguration(title, button_color) {
   }
 
   function complete() {
+    // Prevent multiple executions
+    if (state.completed) {
+      console.log("Complete already called, ignoring");
+      return;
+    }
+    
+    state.completed = true;
+    console.log("Starting completion process");
+    
+    // Clear any remaining timers
+    if (state.completeTimer) {
+      clearTimeout(state.completeTimer);
+      state.completeTimer = null;
+    }
+    
     // First, show the success message immediately
     state.view = "complete";
     render(state);
