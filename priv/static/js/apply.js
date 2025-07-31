@@ -10,26 +10,37 @@ function applyConfiguration(title, button_color) {
     completed: false,
     ssid: document.getElementById("ssid").getAttribute("value"),
     title: title,
+    isPolling: false, // Flag to prevent multiple concurrent polling requests
   };
 
   function runGetStatus() {
     setTimeout(getStatus, 1000);
   }
-  
-  function runGetStatusImmediate() {
-    setTimeout(getStatus, 200); // Start polling much sooner for immediate calls
-  }
 
   function getStatus() {
+    // Prevent multiple concurrent polling requests
+    if (state.isPolling) {
+      console.log("Polling already in progress, skipping this request");
+      setTimeout(() => runGetStatus(), 1000); // Retry in 1 second
+      return;
+    }
+    
+    state.isPolling = true;
+    
     // Add timeout to prevent hanging requests
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+    const timeoutId = setTimeout(() => {
+      console.log("Status request timeout - aborting");
+      controller.abort();
+    }, 8000); // Reduced from 10s to 8s
     
     fetch("/api/v1/configuration/status", {
       signal: controller.signal
     })
       .then((resp) => {
         clearTimeout(timeoutId);
+        state.isPolling = false;
+        
         if (!resp.ok) {
           throw new Error(`HTTP ${resp.status}`);
         }
@@ -38,14 +49,16 @@ function applyConfiguration(title, button_color) {
       .then(handleStatusResponse)
       .catch((error) => {
         clearTimeout(timeoutId);
+        state.isPolling = false;
         
-        // Handle network change errors during polling
+        // Handle network change errors and resource errors during polling
         if (error.message.includes("NetworkError") || 
             error.message.includes("ERR_NETWORK_CHANGED") ||
+            error.message.includes("ERR_INSUFFICIENT_RESOURCES") ||
             error.message.includes("Failed to fetch") ||
             error.message.includes("aborted")) {
           
-          console.log("Network error during polling - continuing to retry");
+          console.log("Network/Resource error during polling - continuing to retry:", error.message);
           handleNetworkErrorResponse(error);
         } else {
           console.error("Status polling error:", error);
@@ -91,7 +104,11 @@ function applyConfiguration(title, button_color) {
       state.dots = ""; // Reset dots to prevent infinite growth
     }
     render(state);
-    runGetStatus(); // Continue polling even on network errors
+    
+    // Add extra delay for network/resource errors to prevent overwhelming the server
+    setTimeout(() => {
+      runGetStatus();
+    }, 2000); // Wait 2 seconds before retrying on network errors
   }
 
   function createCompleteLink({ targetElem, view }) {
@@ -293,7 +310,7 @@ function applyConfiguration(title, button_color) {
     // Check if resp is not null (could be null from 404 handling above)
     if (resp) {
       console.log("Apply successful, starting status polling");
-      runGetStatusImmediate();
+      runGetStatus();
     }
   })
   .catch((error) => {
@@ -319,9 +336,9 @@ function applyConfiguration(title, button_color) {
         <p class="text-muted">This may take 15-30 seconds.</p>
       `;
       
-      // Start polling immediately since the apply probably worked
+      // Start polling since the apply probably worked
       setTimeout(() => {
-        runGetStatusImmediate();
+        runGetStatus();
       }, 2000); // Wait 2 seconds then start polling
       
       return; // Don't show error message
