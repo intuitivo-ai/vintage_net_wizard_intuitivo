@@ -333,7 +333,6 @@ defmodule VintageNetWizard.Web.ApiV2 do
 
     Logger.info("API_V2_PUT_COMPLETE_REQUEST")
 
-    :ok = BackendServer.complete()
     BackendServer.stop_cameras()
 
     _ =
@@ -341,6 +340,11 @@ defmodule VintageNetWizard.Web.ApiV2 do
         # We don't want to stop the server before we
         # send the response back.
         :timer.sleep(3000)
+        Logger.info("API_V1_COMPLETE_BACKGROUND - Executing BackendServer.complete()")
+        :ok = BackendServer.complete()
+        
+        :timer.sleep(2000)
+        Logger.info("API_V1_COMPLETE_SHUTDOWN - Stopping server after successful completion")
         Endpoint.stop_server(:shutdown)
       end)
 
