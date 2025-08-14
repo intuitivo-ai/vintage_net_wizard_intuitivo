@@ -56,7 +56,7 @@ defmodule VintageNetWizard.Web.ApiV2 do
     send_resp: 3
   ]
 
-  @valid_lock_types ["retrofit", "imbera", "southco", "duenorth"]
+  @valid_lock_types ["retrofit", "imbera", "southco", "duenorth", "habco"]
 
   @cors_headers [
     {"access-control-allow-origin", "*"},
@@ -302,7 +302,7 @@ defmodule VintageNetWizard.Web.ApiV2 do
         response = %{
           error: "validation_error",
           code: "INVALID_LOCK_TYPE",
-          message: "lockType must be one of: retrofit, imbera, southco",
+          message: "lockType must be one of: retrofit, imbera, southco, habco",
           timestamp: DateTime.utc_now() |> DateTime.to_iso8601()
         }
 
@@ -391,7 +391,7 @@ defmodule VintageNetWizard.Web.ApiV2 do
     end
   end
 
-  defp validate_lock_type(%{"lockType" => type}) when type in ["retrofit", "imbera", "southco"], do: {:ok, type}
+  defp validate_lock_type(%{"lockType" => type}) when type in ["retrofit", "imbera", "southco", "habco"], do: {:ok, type}
   defp validate_lock_type(_), do: {:error, "Invalid lock type"}
 
   defp validate_wifi_config(%{"wifi" => %{"method" => method} = wifi}) when method in ["dhcp", "static"] do
