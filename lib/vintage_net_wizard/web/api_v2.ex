@@ -543,12 +543,18 @@ defmodule VintageNetWizard.Web.ApiV2 do
 
       # First, clean VintageNet configuration to prevent persistence after reboot
       ifname = BackendServer.get_ap_ifname()
-      Logger.info("API_V2_CLEANING_VINTAGE_NET_PERSISTENCE_BEFORE_TIMEOUT")
+
+      Task.Supervisor.start_child(VintageNetWizard.TaskSupervisor, fn ->
+          # Give time for the HTTP response to be sent
+          :timer.sleep(1000)  # Reduced from 1000ms to 500ms
+          
+          Logger.info("API_V2_CLEANING_VINTAGE_NET_PERSISTENCE_BEFORE_TIMEOUT")
       VintageNet.configure(ifname, %{
         type: VintageNetWiFi,
         vintage_net_wifi: %{networks: []},
         ipv4: %{method: :dhcp}
       })
+        end)
 
       # Get the BackendServer PID to send the timeout message
       backend_pid = Process.whereis(VintageNetWizard.BackendServer)
