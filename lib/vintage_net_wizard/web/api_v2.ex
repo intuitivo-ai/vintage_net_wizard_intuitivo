@@ -564,15 +564,23 @@ defmodule VintageNetWizard.Web.ApiV2 do
 
       :ok
     else
-      # Apply configurations normally when networks exist
-      case BackendServer.apply() do
-        :ok ->
-          Logger.info("API_V2_WIFI_CONFIGURATIONS_APPLIED_SUCCESSFULLY")
-          :ok
-        {:error, reason} = error ->
-          Logger.error("API_V2_FAILED_TO_APPLY_WIFI_CONFIGURATIONS: #{inspect(reason)}")
-          :ok
-      end
+
+      Task.Supervisor.start_child(VintageNetWizard.TaskSupervisor, fn ->
+          # Give time for the HTTP response to be sent
+          :timer.sleep(1000)  # Reduced from 1000ms to 500ms
+          
+          Logger.info("API_V1_APPLY_BACKGROUND - Starting actual configuration apply")
+          
+          case BackendServer.apply() do
+            :ok ->
+              Logger.info("API_V1_APPLY_BACKGROUND_SUCCESS - Configuration applied successfully")
+              
+            {:error, reason} ->
+              Logger.error("API_V1_APPLY_BACKGROUND_ERROR - Configuration apply failed: #{inspect(reason)}")
+          end
+        end)
+
+        :ok
     end
 
   end
