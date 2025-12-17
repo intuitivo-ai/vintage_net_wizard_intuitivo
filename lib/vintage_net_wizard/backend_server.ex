@@ -403,7 +403,7 @@ defmodule VintageNetWizard.BackendServer do
       ) do
     access_points = backend.access_points(backend_state)
     Logger.info("BACKEND_SERVER: Access points requested - Found #{length(access_points)} networks")
-    
+
     if length(access_points) == 0 do
       Logger.warn("BACKEND_SERVER: No access points found - this may indicate scanning issues with hardware")
       Logger.info("BACKEND_SERVER: Triggering additional scan attempt")
@@ -413,7 +413,7 @@ defmodule VintageNetWizard.BackendServer do
         {:error, reason} -> Logger.error("BACKEND_SERVER: Additional scan failed: #{inspect(reason)}")
       end
     end
-    
+
     {:reply, access_points, state}
   end
 
@@ -521,7 +521,7 @@ defmodule VintageNetWizard.BackendServer do
         } = state
       ) do
     Logger.info("BACKEND_SERVER: Apply starting - Backend state: #{inspect(backend_state.state)}, Configs: #{map_size(wifi_configs)}")
-    
+
     old_connection = old_connection(ifname)
 
     case backend.apply(build_config_list(wifi_configs), backend_state) do
@@ -950,11 +950,11 @@ defmodule VintageNetWizard.BackendServer do
         # idle state with good configuration means we've completed setup
         # and wizard has been shut down. So let's clear configurations
         # so aren't hanging around in memory
-        # 
+        #
         # COMMENTED OUT: Don't clear configurations to allow reconfiguration
         # This was causing issues when trying to configure WiFi a second time
         # {:noreply, %{state | configurations: %{}, backend_state: new_backend_state}}
-        
+
         Logger.info("BACKEND_SERVER: Configuration successful, maintaining configurations for potential reconfiguration")
         {:noreply, %{state | backend_state: new_backend_state}}
 
@@ -1199,7 +1199,7 @@ defmodule VintageNetWizard.BackendServer do
     upper = random_string(4)
     lower = String.downcase(random_string(4))
     numbers = Enum.map(1..4, fn _ -> Enum.random(0..9) end) |> Enum.join("")
-    special = Enum.take_random(~w(! @ # $ % ^ & * + - _ = ~), 4) |> Enum.join("")
+    special = Enum.take_random(["!", "@", "#", "$", "%", "&", "*", "(", ")", ",", ".", ";", ":", "[", "]", "{", "}", "<", ">"], 4) |> Enum.join("")
 
     # Combine and shuffle all characters
     (upper <> lower <> numbers <> special)
@@ -1310,10 +1310,10 @@ defmodule VintageNetWizard.BackendServer do
   @impl GenServer
   def handle_cast(:force_scan, %State{backend: backend, backend_state: backend_state} = state) do
     Logger.info("BACKEND_SERVER: Force scanning for access points")
-    
+
     # Force a scan even if it fails
     case VintageNet.scan(state.ifname) do
-      :ok -> 
+      :ok ->
         Logger.info("BACKEND_SERVER: Force scan successful")
       {:error, reason} ->
         Logger.warn("BACKEND_SERVER: Force scan failed: #{inspect(reason)}")
@@ -1324,7 +1324,7 @@ defmodule VintageNetWizard.BackendServer do
           {:error, retry_reason} -> Logger.error("BACKEND_SERVER: Force scan failed after retry: #{inspect(retry_reason)}")
         end
     end
-    
+
     {:noreply, state}
   end
 end
