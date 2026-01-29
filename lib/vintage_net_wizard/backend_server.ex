@@ -635,9 +635,9 @@ defmodule VintageNetWizard.BackendServer do
   end
 
   @impl GenServer
-  def handle_cast({:start_cams_ap, _value}, %State{backend: backend, backend_state: backend_state} = state) do
-
-    Logger.info("BACKEND_SERVER: Starting AP mode - Current backend state: #{inspect(backend_state.state)}")
+  def handle_cast({:start_cams_ap, ap_on}, %State{backend: backend, backend_state: backend_state} = state) do
+    mode_label = if ap_on == :server_only, do: "server only (no AP)", else: "AP mode"
+    Logger.info("BACKEND_SERVER: Starting wizard #{mode_label} - Current backend state: #{inspect(backend_state.state)}")
 
     In2Firmware.Services.Operations.ReviewHW.get_lock_type()
     In2Firmware.Services.Operations.ReviewHW.get_profile()
@@ -645,9 +645,9 @@ defmodule VintageNetWizard.BackendServer do
     In2Firmware.Services.Operations.ReviewHW.get_state_comm()
     In2Firmware.Services.Operations.ReviewHW.get_init_state()
 
-    # Reset backend state to allow new configurations when entering AP mode
+    # Reset backend state to allow new configurations when entering wizard
     new_backend_state = backend.reset(backend_state)
-    Logger.info("BACKEND_SERVER: Backend state reset to: #{inspect(new_backend_state.state)} for new AP mode session")
+    Logger.info("BACKEND_SERVER: Backend state reset to: #{inspect(new_backend_state.state)} for new wizard session")
 
     {:noreply, %{state | backend_state: new_backend_state}}
   end
