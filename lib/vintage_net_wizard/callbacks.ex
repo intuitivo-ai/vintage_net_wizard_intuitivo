@@ -83,8 +83,37 @@ defmodule VintageNetWizard.Callbacks do
         :ok
 
       module ->
-        apply(module, fun, args)
+        safe_apply(module, fun, args, config_key)
     end
+  end
+
+  defp safe_apply(module, fun, args, config_key) do
+    apply(module, fun, args)
+  rescue
+    err ->
+      Logger.error(
+        "[VintageNetWizard.Callbacks] #{config_key}.#{fun}/#{length(args)} failed: #{inspect(err)}"
+      )
+      :ok
+  catch
+    kind, reason ->
+      Logger.error(
+        "[VintageNetWizard.Callbacks] #{config_key}.#{fun}/#{length(args)} threw #{kind}: #{inspect(reason)}"
+      )
+      :ok
+  end
+
+  # Runs a 0-arity thunk and returns default on any exception (full call is protected).
+  defp safe_apply_result(thunk, default, config_key) when is_function(thunk, 0) do
+    thunk.()
+  rescue
+    err ->
+      Logger.error("[VintageNetWizard.Callbacks] #{config_key} callback failed: #{inspect(err)}")
+      default
+  catch
+    kind, reason ->
+      Logger.error("[VintageNetWizard.Callbacks] #{config_key} callback threw #{kind}: #{inspect(reason)}")
+      default
   end
 
   # --- ReviewHW callbacks ---
@@ -111,7 +140,7 @@ defmodule VintageNetWizard.Callbacks do
   def operations_get_cameras_status do
     case mod(:operations_module) do
       nil -> nil
-      module -> module.get_cameras_status()
+      module -> safe_apply_result(fn -> module.get_cameras_status() end, nil, :operations_module)
     end
   end
 
@@ -132,7 +161,7 @@ defmodule VintageNetWizard.Callbacks do
         :ok
 
       module ->
-        module.check_cellular_connection(module.target())
+        safe_apply_result(fn -> module.check_cellular_connection(module.target()) end, :ok, :firmware_module)
     end
   end
 
@@ -148,7 +177,7 @@ defmodule VintageNetWizard.Callbacks do
   def firmware_reboot do
     case mod(:reboot_module) do
       nil -> :ok
-      module -> module.reboot()
+      module -> safe_apply_result(fn -> module.reboot() end, :ok, :reboot_module)
     end
   end
 
@@ -158,7 +187,7 @@ defmodule VintageNetWizard.Callbacks do
   def firmware_set_ntp_servers(servers) when is_list(servers) do
     case mod(:ntp_module) do
       nil -> :ok
-      module -> module.set_ntp_servers(servers)
+      module -> safe_apply_result(fn -> module.set_ntp_servers(servers) end, :ok, :ntp_module)
     end
   end
 end

@@ -24,7 +24,7 @@ defmodule VintageNetWizard do
     * `:on_exit` - `{module, function, args}` tuple specifying callback to perform after stopping the server.
     * `:ssl` - A Keyword list of `:ssl.tls_server_options`. See `Plug.SSL.configure/1`.
     * `:ui` - a subset of UI configuration for title, title color, and button color.
-    * `:ap_on` - `:yes` / `:ap` to put interface in AP mode and start server; `:server_only` to start only the web/API server (no AP); `:no` to do nothing (default).
+    * `:ap_on` - `:yes` / `:ap` to put interface in AP mode and start server (default); `:server_only` to start only the web/API server (no AP); `:no` to do nothing.
   """
   @spec run_wizard([Endpoint.opt()]) :: :ok | {:error, String.t()}
   def run_wizard(opts \\ []) do
@@ -32,7 +32,7 @@ defmodule VintageNetWizard do
     ap_ifname = Keyword.get(opts, :ap_ifname, ifname)
     configurations = get_network_configs(ifname)
 
-    ap_on = Keyword.get(opts, :ap_on, :no)
+    ap_on = Keyword.get(opts, :ap_on, :yes)
 
     opts =
       opts

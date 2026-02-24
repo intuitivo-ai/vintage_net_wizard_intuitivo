@@ -1186,13 +1186,16 @@ defmodule VintageNetWizard.BackendServer do
   end
 
   defp camera_status_label(nil, _index), do: "unknown"
-  defp camera_status_label(statuses, index) do
-    case Map.get(statuses, index) do
+  defp camera_status_label(statuses, index) when is_map(statuses) do
+    # Support both integer and string keys (e.g. %{0 => true} or %{"0" => true})
+    status = Map.get(statuses, index) || Map.get(statuses, to_string(index))
+    case status do
       true -> "online"
       false -> "offline"
-      nil -> "unknown"
+      _ -> "unknown"
     end
   end
+  defp camera_status_label(_statuses, _index), do: "unknown"
 
   def configuration_status_details(:not_configured), do: "No network configuration present"
   def configuration_status_details(:good), do: "Network configured and connected"
