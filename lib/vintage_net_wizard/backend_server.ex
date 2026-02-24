@@ -1187,8 +1187,12 @@ defmodule VintageNetWizard.BackendServer do
 
   defp camera_status_label(nil, _index), do: "unknown"
   defp camera_status_label(statuses, index) when is_map(statuses) do
-    # Support both integer and string keys (e.g. %{0 => true} or %{"0" => true})
-    status = Map.get(statuses, index) || Map.get(statuses, to_string(index))
+    # Support both integer and string keys; use fetch so false (offline) is not treated as missing
+    status =
+      case Map.fetch(statuses, index) do
+        {:ok, v} -> v
+        :error -> Map.get(statuses, to_string(index))
+      end
     case status do
       true -> "online"
       false -> "offline"
