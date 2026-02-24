@@ -5,7 +5,6 @@ defmodule VintageNetWizard.BackendServer do
   use GenServer
   require Logger
 
-  alias VintageNetWiFi.AccessPoint
   alias VintageNetWizard.{APMode, Backend, Callbacks}
 
   defmodule State do
@@ -344,6 +343,11 @@ defmodule VintageNetWizard.BackendServer do
     GenServer.call(__MODULE__, :get_ap_ifname)
   end
 
+  @spec get_ifname() :: String.t()
+  def get_ifname() do
+    GenServer.call(__MODULE__, :get_ifname)
+  end
+
   @doc """
   Get the complete state for debugging purposes
   """
@@ -405,7 +409,7 @@ defmodule VintageNetWizard.BackendServer do
     Logger.info("BACKEND_SERVER: Access points requested - Found #{length(access_points)} networks")
 
     if length(access_points) == 0 do
-      Logger.warn("BACKEND_SERVER: No access points found - this may indicate scanning issues with hardware")
+      Logger.warning("BACKEND_SERVER: No access points found - this may indicate scanning issues with hardware")
       Logger.info("BACKEND_SERVER: Triggering additional scan attempt")
       # Force a scan if no access points are found
       case VintageNet.scan(state.ifname) do
@@ -632,6 +636,32 @@ defmodule VintageNetWizard.BackendServer do
 
     :ok = deconfigure_ap_ifname(state)
     {:reply, :ok, %{state | backend_state: new_backend_state}}
+  end
+
+  def handle_call(:get_wifi_networks_with_passwords, _from, state) do
+    networks = case File.read("/root/.psk_wifi.json") do
+      {:ok, binary} ->
+        case Jason.decode(binary) do
+          {:ok, %{"networks" => networks}} -> networks
+          {:error, _} -> []
+        end
+      {:error, _} -> []
+    end
+
+    {:reply, networks, state}
+  end
+
+  def handle_call(:get_wifi_networks, _from, state) do
+    wifi_networks = get_wifi_networks(state)
+    {:reply, wifi_networks, state}
+  end
+
+  def handle_call(:get_ap_ifname, _from, %State{ap_ifname: ap_ifname} = state) do
+    {:reply, ap_ifname, state}
+  end
+
+  def handle_call(:get_ifname, _from, %State{ifname: ifname} = state) do
+    {:reply, ifname, state}
   end
 
   @impl GenServer
@@ -919,17 +949,22 @@ defmodule VintageNetWizard.BackendServer do
   end
 
   @impl GenServer
-  def handle_call(:get_wifi_networks_with_passwords, _from, state) do
-    networks = case File.read("/root/.psk_wifi.json") do
-      {:ok, binary} ->
-        case Jason.decode(binary) do
-          {:ok, %{"networks" => networks}} -> networks
-          {:error, _} -> []
+  def handle_cast(:force_scan, state) do
+    Logger.info("BACKEND_SERVER: Force scanning for access points")
+
+    case VintageNet.scan(state.ifname) do
+      :ok ->
+        Logger.info("BACKEND_SERVER: Force scan successful")
+      {:error, reason} ->
+        Logger.warning("BACKEND_SERVER: Force scan failed: #{inspect(reason)}")
+        Process.sleep(1000)
+        case VintageNet.scan(state.ifname) do
+          :ok -> Logger.info("BACKEND_SERVER: Force scan successful on retry")
+          {:error, retry_reason} -> Logger.error("BACKEND_SERVER: Force scan failed after retry: #{inspect(retry_reason)}")
         end
-      {:error, _} -> []
     end
 
-    {:reply, networks, state}
+    {:noreply, state}
   end
 
   @impl GenServer
@@ -1171,7 +1206,7 @@ defmodule VintageNetWizard.BackendServer do
 
   # Generates a secure random password with specified minimum length
   # including uppercase, lowercase, numbers and special characters
-  defp random_password(min_length) do
+  defp random_password(_min_length) do
     # Ensure we have at least one of each character type
     upper = random_string(4)
     lower = String.downcase(random_string(4))
@@ -1271,37 +1306,5 @@ defmodule VintageNetWizard.BackendServer do
        apn: result.apn,
        ntp: result.ntps
      }}
-  end
-
-  @impl GenServer
-  def handle_call(:get_wifi_networks, _from, state) do
-    wifi_networks = get_wifi_networks(state)
-    {:reply, wifi_networks, state}
-  end
-
-  @impl GenServer
-  def handle_call(:get_ap_ifname, _from, %State{ap_ifname: ap_ifname} = state) do
-    {:reply, ap_ifname, state}
-  end
-
-  @impl GenServer
-  def handle_cast(:force_scan, %State{backend: backend, backend_state: backend_state} = state) do
-    Logger.info("BACKEND_SERVER: Force scanning for access points")
-
-    # Force a scan even if it fails
-    case VintageNet.scan(state.ifname) do
-      :ok ->
-        Logger.info("BACKEND_SERVER: Force scan successful")
-      {:error, reason} ->
-        Logger.warn("BACKEND_SERVER: Force scan failed: #{inspect(reason)}")
-        # Try one more time with a delay
-        Process.sleep(1000)
-        case VintageNet.scan(state.ifname) do
-          :ok -> Logger.info("BACKEND_SERVER: Force scan successful on retry")
-          {:error, retry_reason} -> Logger.error("BACKEND_SERVER: Force scan failed after retry: #{inspect(retry_reason)}")
-        end
-    end
-
-    {:noreply, state}
   end
 end

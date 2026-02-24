@@ -1,10 +1,11 @@
 defmodule VintageNetWizard.Callbacks do
   @moduledoc """
-  Wrapper for firmware-specific callbacks configured via application env.
+  Agent for on_exit callbacks and wrapper for firmware-specific callbacks
+  configured via application env.
 
-  Reads module references from config to avoid compile-time dependencies
-  on In2Firmware modules, preventing warnings when building the wizard as
-  a separate library.
+  The Agent part handles lifecycle callbacks (on_exit) used by the Endpoint.
+  The firmware wrappers read module references from config to avoid
+  compile-time dependencies on In2Firmware modules.
 
   ## Configuration
 
@@ -16,7 +17,60 @@ defmodule VintageNetWizard.Callbacks do
         lock_module: In2Firmware.Services.Lock
   """
 
+  use Agent
+
   require Logger
+
+  # ============================================================================
+  # Agent lifecycle (used by Endpoint)
+  # ============================================================================
+
+  @type callback :: {:on_exit, {module(), atom(), any()}}
+  @type callbacks :: [callback]
+
+  @spec start_link(callbacks) :: GenServer.on_start()
+  def start_link(callbacks) do
+    callbacks = Enum.reduce(callbacks, [], &validate_callback/2)
+    Agent.start_link(fn -> callbacks end, name: __MODULE__)
+  end
+
+  @spec list() :: any()
+  def list() do
+    Agent.get(__MODULE__, & &1)
+  end
+
+  @spec on_exit() :: any()
+  def on_exit() do
+    list()
+    |> Keyword.get(:on_exit)
+    |> apply_callback()
+  end
+
+  defp apply_callback({mod, fun, args}) do
+    apply(mod, fun, args)
+  rescue
+    err ->
+      Logger.error("[VintageNetWizard] Failed to run callback: #{inspect(err)}")
+  end
+
+  defp apply_callback(invalid), do: {:error, "invalid callback: #{inspect(invalid)}"}
+
+  defp validate_callback({_key, {mod, fun, args}} = callback, acc)
+       when is_atom(mod) and is_atom(fun) and is_list(args) do
+    [callback | acc]
+  end
+
+  defp validate_callback({key, invalid}, acc) do
+    Logger.warning(
+      "Skipping invalid callback option for #{inspect(key)}\n\tgot: #{inspect(invalid)}\n\texpected: {module, function, [args]}"
+    )
+
+    acc
+  end
+
+  # ============================================================================
+  # Firmware module wrappers (read from config, no compile-time dependency)
+  # ============================================================================
 
   defp mod(key), do: Application.get_env(:vintage_net_wizard, key)
 

@@ -37,23 +37,6 @@ defmodule VintageNetWizard.Web.Router do
     Regex.match?(@ip_regex, ip)
   end
 
-  ## Plug Auth usgin Plug.BasicAuth custom
-  defp auth(conn, _opts) do
-    with {user, pass} <- Plug.BasicAuth.parse_basic_auth(conn) do
-      ##process to authorize
-      username = Application.get_env(:in2_firmware, :username)
-      password = Application.get_env(:in2_firmware, :password)
-      #Logger.info("Authorizing #{user} with #{pass}")
-      if username == user and password == pass do
-        assign(conn, :current_user, :admin)
-      else
-        conn |> Plug.BasicAuth.request_basic_auth() |> halt()
-      end
-    else
-      _ -> conn |> Plug.BasicAuth.request_basic_auth() |> halt()
-    end
-  end
-
   get "/" do
     case BackendServer.configurations() do
       [] ->

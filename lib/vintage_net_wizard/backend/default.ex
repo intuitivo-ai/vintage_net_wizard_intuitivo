@@ -109,7 +109,7 @@ defmodule VintageNetWizard.Backend.Default do
     # Even when configuration_status is already :good, we need to return to AP mode
     # to allow for additional configurations
     Process.sleep(4_000)
-    ok = APMode.into_ap_mode(ap_ifname)
+    _ok = APMode.into_ap_mode(ap_ifname)
     
     Logger.info("BACKEND: Configuration successful (already good), returning to AP mode")
 
@@ -130,7 +130,7 @@ defmodule VintageNetWizard.Backend.Default do
     # wifi runs into a race condition. So, we wait a little
     # before trying to re-initialize the interface.
     Process.sleep(4_000)
-    ok = APMode.into_ap_mode(ap_ifname)
+    _ok = APMode.into_ap_mode(ap_ifname)
 
     data =
       data
@@ -241,7 +241,7 @@ defmodule VintageNetWizard.Backend.Default do
       :ok -> 
         :ok
       {:error, reason} ->
-        Logger.warn("WiFi configuration failed, retrying: #{inspect(reason)}")
+        Logger.warning("WiFi configuration failed, retrying: #{inspect(reason)}")
         # For Realtek and other problematic hardware, wait a bit and retry
         Process.sleep(2000)
         case VintageNet.configure(ifname, config) do
@@ -264,7 +264,7 @@ defmodule VintageNetWizard.Backend.Default do
       :ok -> :ok
       _ ->
         if retries > 0 do
-          Logger.warn("Retrying scan due to failure. Retries left: #{retries}")
+          Logger.warning("Retrying scan due to failure. Retries left: #{retries}")
           Process.sleep(1000) # Wait a bit before retrying
           scan_with_retries(state, retries - 1)
         else

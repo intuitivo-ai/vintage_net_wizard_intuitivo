@@ -502,7 +502,7 @@ defmodule VintageNetWizard.Web.ApiV2 do
         # Add/update new networks
         if networks != [] do
           # Convert networks to the format expected by BackendServer
-          network_configs = Enum.map(networks, fn network ->
+          _network_configs = Enum.map(networks, fn network ->
             {:ok, cfg} = WiFiConfiguration.json_to_network_config(network)
             # Save individual configuration
             BackendServer.save(cfg)
@@ -641,35 +641,6 @@ defmodule VintageNetWizard.Web.ApiV2 do
     send_json(conn, status_code, Jason.encode!(data))
   end
 
-  defp enhance_access_points(access_points) do
-    access_points
-    |> VintageNetWiFi.summarize_access_points()
-    |> Enum.map(fn ap ->
-      ap
-      |> Map.from_struct()
-      |> Map.put(:scan_time, DateTime.utc_now() |> DateTime.to_iso8601())
-      |> Map.put(:security_details, extract_security_details(ap.flags))
-      |> Map.put(:signal_quality, calculate_signal_quality(ap.signal_percent))
-    end)
-  end
-
-  defp extract_security_details(flags) do
-    %{
-      is_secure: Enum.any?(flags, &(&1 in [:wpa2, :wpa])),
-      authentication_types: Enum.filter(flags, &(&1 in [:psk, :eap])),
-      encryption_types: Enum.filter(flags, &(&1 in [:ccmp, :tkip]))
-    }
-  end
-
-  defp calculate_signal_quality(signal_percent) when is_integer(signal_percent) do
-    cond do
-      signal_percent >= 80 -> "excellent"
-      signal_percent >= 60 -> "good"
-      signal_percent >= 40 -> "fair"
-      signal_percent >= 20 -> "poor"
-      true -> "very_poor"
-    end
-  end
 
   defp send_error_response(conn, error) do
     {status, response} = error_details(error)
