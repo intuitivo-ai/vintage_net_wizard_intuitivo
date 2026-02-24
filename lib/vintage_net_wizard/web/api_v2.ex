@@ -71,6 +71,7 @@ defmodule VintageNetWizard.Web.ApiV2 do
 
   alias Plug.Conn
   alias VintageNetWizard.BackendServer
+  alias VintageNetWizard.Callbacks
   alias VintageNetWizard.Web.Endpoint
   alias VintageNetWizard.WiFiConfiguration
 
@@ -218,7 +219,7 @@ defmodule VintageNetWizard.Web.ApiV2 do
   post "/cameras/initialize" do
     #BackendServer.init_cameras()  # Using existing function
 
-    In2Firmware.Services.Operations.re_init_http()
+    Callbacks.operations_re_init_http()
 
     response = %{
       status: "success",

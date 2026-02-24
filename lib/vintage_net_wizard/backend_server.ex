@@ -6,7 +6,7 @@ defmodule VintageNetWizard.BackendServer do
   require Logger
 
   alias VintageNetWiFi.AccessPoint
-  alias VintageNetWizard.{APMode, Backend}
+  alias VintageNetWizard.{APMode, Backend, Callbacks}
 
   defmodule State do
     @moduledoc false
@@ -639,11 +639,11 @@ defmodule VintageNetWizard.BackendServer do
     mode_label = if ap_on == :server_only, do: "server only (no AP)", else: "AP mode"
     Logger.info("BACKEND_SERVER: Starting wizard #{mode_label} - Current backend state: #{inspect(backend_state.state)}")
 
-    In2Firmware.Services.Operations.ReviewHW.get_lock_type()
-    In2Firmware.Services.Operations.ReviewHW.get_profile()
-    In2Firmware.Services.Operations.ReviewHW.get_version()
-    In2Firmware.Services.Operations.ReviewHW.get_state_comm()
-    In2Firmware.Services.Operations.ReviewHW.get_init_state()
+    Callbacks.review_hw_get_lock_type()
+    Callbacks.review_hw_get_profile()
+    Callbacks.review_hw_get_version()
+    Callbacks.review_hw_get_state_comm()
+    Callbacks.review_hw_get_init_state()
 
     # Reset backend state to allow new configurations when entering wizard
     new_backend_state = backend.reset(backend_state)
@@ -683,7 +683,7 @@ defmodule VintageNetWizard.BackendServer do
     #  )
     #end
 
-    In2Firmware.Services.Operations.re_init_http()
+    Callbacks.operations_re_init_http()
 
     {:noreply, state}
   end
@@ -701,8 +701,8 @@ defmodule VintageNetWizard.BackendServer do
 
     #In2Firmware.Services.Operations.default_init_cameras()
 
-    In2Firmware.Services.Operations.re_stop_http()
-    In2Firmware.Services.Operations.re_stop_tcp()
+    Callbacks.operations_re_stop_http()
+    Callbacks.operations_re_stop_tcp()
 
     {:noreply,  state}
   end
@@ -769,7 +769,7 @@ defmodule VintageNetWizard.BackendServer do
   @impl GenServer
   def handle_cast({:change_lock, value}, state) do
 
-    In2Firmware.Services.Operations.ReviewHW.change_lock(value)
+    Callbacks.review_hw_change_lock(value)
 
     {:noreply, state}
   end
@@ -788,7 +788,7 @@ defmodule VintageNetWizard.BackendServer do
   def handle_cast({:save_lock, value}, state) do
 
     if state.lock_type["lock_type"] != value do
-      In2Firmware.Services.Operations.Utils.set_lock_type(value)
+      Callbacks.utils_set_lock_type(value)
     end
 
     {:noreply, state}
@@ -800,7 +800,7 @@ defmodule VintageNetWizard.BackendServer do
     if apn != "" do
       File.write("/root/apn.txt", apn, [:write])
 
-      In2Firmware.check_cellular_connection(In2Firmware.target())
+      Callbacks.firmware_check_cellular_connection()
     end
 
     {:noreply, state}
@@ -826,7 +826,7 @@ defmodule VintageNetWizard.BackendServer do
         # Save credentials to secret file
         save_ap_credentials(random_ssid, random_password)
       else
-        In2Firmware.check_sharing_connection("")
+        Callbacks.firmware_check_sharing_connection("")
       end
       state
     else
@@ -835,7 +835,7 @@ defmodule VintageNetWizard.BackendServer do
         case result do
           {:ok, interface} ->
             File.write("/root/internet.txt", "", [:write])
-            In2Firmware.check_sharing_connection(interface)
+            Callbacks.firmware_check_sharing_connection(interface)
             ap_credentials = get_ap_credentials()
             if ap_credentials.ssid != "" and ap_credentials.password != "" do
               # Modify state directly
@@ -845,7 +845,7 @@ defmodule VintageNetWizard.BackendServer do
             end
           {:error, _posix} ->
             File.write("/root/internet.txt", "", [:write])
-            In2Firmware.check_sharing_connection("")
+            Callbacks.firmware_check_sharing_connection("")
             ap_credentials = get_ap_credentials()
             if ap_credentials.ssid != "" and ap_credentials.password != "" do
               # Modify state directly
@@ -856,7 +856,7 @@ defmodule VintageNetWizard.BackendServer do
         end
       else
         File.write("/root/internet.txt", "", [:write])
-        In2Firmware.check_sharing_connection("")
+        Callbacks.firmware_check_sharing_connection("")
         ap_credentials = get_ap_credentials()
         if ap_credentials.ssid != "" and ap_credentials.password != "" do
           # Modify state directly
@@ -894,7 +894,7 @@ defmodule VintageNetWizard.BackendServer do
   @impl GenServer
   def handle_cast({:change_profile, profile}, state) do
 
-    In2Firmware.Services.Operations.ReviewHW.set_profile(profile)
+    Callbacks.review_hw_set_profile(profile)
 
     {:noreply, state}
   end
@@ -1136,50 +1136,27 @@ defmodule VintageNetWizard.BackendServer do
 
   def get_cameras() do
     device_ip = Application.get_env(:vintage_net_wizard, :dns_name, "setup.firmware.intuitivo.com")
+    statuses = Callbacks.operations_get_cameras_status()
 
-    [
-       #%{
-       #  id: "cam0",
-       #  name: "Upper Central Camera",
-       #  status: "online",
-       #  streamUrl: "http://#{device_ip}:11000"
-       #},
-       #%{
-       #  id: "cam1",
-       #  name: "Upper Lateral Camera",
-       #  status: "online",
-       #  streamUrl: "http://#{device_ip}:11001"
-       #},
-       #%{
-       #  id: "cam2",
-       #  name: "Lateral Retractable Camera",
-       #  status: "online",
-       #  streamUrl: "http://#{device_ip}:11002"
-       #}
-
-      %{
-        id: "cam0",
-        name: "Upper Central Camera",
-        status: "online",
-        host: device_ip,
-        port: 11000
-      },
-      %{
-        id: "cam1",
-        name: "Upper Lateral Camera",
-        status: "online",
-        host: device_ip,
-        port: 11001
-      },
-      %{
-        id: "cam2",
-        name: "Lateral Retractable Camera",
-        status: "online",
-        host: device_ip,
-        port: 11002
-      }
-
+    cameras = [
+      %{id: "cam0", name: "Upper Central Camera", host: device_ip, port: 11000, index: 0},
+      %{id: "cam1", name: "Upper Lateral Camera", host: device_ip, port: 11001, index: 1},
+      %{id: "cam2", name: "Lateral Retractable Camera", host: device_ip, port: 11002, index: 2}
     ]
+
+    Enum.map(cameras, fn cam ->
+      status = camera_status_label(statuses, cam.index)
+      cam |> Map.put(:status, status) |> Map.delete(:index)
+    end)
+  end
+
+  defp camera_status_label(nil, _index), do: "unknown"
+  defp camera_status_label(statuses, index) do
+    case Map.get(statuses, index) do
+      true -> "online"
+      false -> "offline"
+      nil -> "unknown"
+    end
   end
 
   def configuration_status_details(:not_configured), do: "No network configuration present"
