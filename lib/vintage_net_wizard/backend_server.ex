@@ -912,7 +912,7 @@ defmodule VintageNetWizard.BackendServer do
     case result do
       {:ok, binary} -> if binary != "" do
         servers = String.split(binary, ",")
-        NervesTime.set_ntp_servers(servers)
+        Callbacks.firmware_set_ntp_servers(servers)
       end
       {:error, _posix} -> ""
     end

@@ -14,7 +14,9 @@ defmodule VintageNetWizard.Callbacks do
         operations_module: In2Firmware.Services.Operations,
         review_hw_module: In2Firmware.Services.Operations.ReviewHW,
         operations_utils_module: In2Firmware.Services.Operations.Utils,
-        lock_module: In2Firmware.Services.Lock
+        lock_module: In2Firmware.Services.Lock,
+        reboot_module: Nerves.Runtime,
+        ntp_module: NervesTime
   """
 
   use Agent
@@ -136,5 +138,27 @@ defmodule VintageNetWizard.Callbacks do
 
   def firmware_check_sharing_connection(interface) do
     safe_call(:firmware_module, :check_sharing_connection, [interface])
+  end
+
+  # --- Nerves / runtime callbacks (optional: only when running on Nerves) ---
+
+  @doc """
+  Reboot the device. No-op if :reboot_module is not configured (e.g. wizard in host).
+  """
+  def firmware_reboot do
+    case mod(:reboot_module) do
+      nil -> :ok
+      module -> module.reboot()
+    end
+  end
+
+  @doc """
+  Set NTP servers. No-op if :ntp_module is not configured.
+  """
+  def firmware_set_ntp_servers(servers) when is_list(servers) do
+    case mod(:ntp_module) do
+      nil -> :ok
+      module -> module.set_ntp_servers(servers)
+    end
   end
 end

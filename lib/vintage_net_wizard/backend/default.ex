@@ -160,9 +160,7 @@ defmodule VintageNetWizard.Backend.Default do
   end
 
   def handle_info(:reboot_device, state) do
-
-    Nerves.Runtime.reboot()
-
+    VintageNetWizard.Callbacks.firmware_reboot()
     {:noreply, state}
   end
 

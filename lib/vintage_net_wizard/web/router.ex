@@ -4,11 +4,9 @@ defmodule VintageNetWizard.Web.Router do
   @combined_pattern ~r/^((\d{1,3}\.){3}\d{1,3}|[a-zA-Z0-9.-]+)(,((\d{1,3}\.){3}\d{1,3}|[a-zA-Z0-9.-]+))*$/
   @ip_regex ~r/^(25[0-5]|2[0-4][0-9]|1[0-9]{2}|[1-9]?[0-9])\.(25[0-5]|2[0-4][0-9]|1[0-9]{2}|[1-9]?[0-9])\.(25[0-5]|2[0-4][0-9]|1[0-9]{2}|[1-9]?[0-9])\.(25[0-5]|2[0-4][0-9]|1[0-9]{2}|[1-9]?[0-9])$/
 
-  use Plug.Router
+  use Plug.Router, copy_opts_to_assign: :opts
   use Plug.Debugger, otp_app: :vintage_net_wizard
   require Logger
-
-  #plug :auth
 
   alias VintageNetWizard.{
     BackendServer,
@@ -23,7 +21,7 @@ defmodule VintageNetWizard.Web.Router do
   # it just polling this endpoint but still be inactive.
   plug(VintageNetWizard.Plugs.Activity, excluding: ["/api/v1/access_points"])
   plug(:match)
-  plug(:dispatch, builder_opts())
+  plug(:dispatch)
 
   defp validate_and_split(input) when is_binary(input) do
     if Regex.match?(@combined_pattern, input) do
