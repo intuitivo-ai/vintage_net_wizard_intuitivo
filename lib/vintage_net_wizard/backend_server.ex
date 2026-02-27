@@ -5,8 +5,7 @@ defmodule VintageNetWizard.BackendServer do
   use GenServer
   require Logger
 
-  alias VintageNetWiFi.AccessPoint
-  alias VintageNetWizard.{APMode, Backend}
+  alias VintageNetWizard.{APMode, Backend, Callbacks}
 
   defmodule State do
     @moduledoc false
@@ -344,6 +343,11 @@ defmodule VintageNetWizard.BackendServer do
     GenServer.call(__MODULE__, :get_ap_ifname)
   end
 
+  @spec get_ifname() :: String.t()
+  def get_ifname() do
+    GenServer.call(__MODULE__, :get_ifname)
+  end
+
   @doc """
   Get the complete state for debugging purposes
   """
@@ -405,7 +409,7 @@ defmodule VintageNetWizard.BackendServer do
     Logger.info("BACKEND_SERVER: Access points requested - Found #{length(access_points)} networks")
 
     if length(access_points) == 0 do
-      Logger.warn("BACKEND_SERVER: No access points found - this may indicate scanning issues with hardware")
+      Logger.warning("BACKEND_SERVER: No access points found - this may indicate scanning issues with hardware")
       Logger.info("BACKEND_SERVER: Triggering additional scan attempt")
       # Force a scan if no access points are found
       case VintageNet.scan(state.ifname) do
@@ -634,20 +638,46 @@ defmodule VintageNetWizard.BackendServer do
     {:reply, :ok, %{state | backend_state: new_backend_state}}
   end
 
+  def handle_call(:get_wifi_networks_with_passwords, _from, state) do
+    networks = case File.read("/root/.psk_wifi.json") do
+      {:ok, binary} ->
+        case Jason.decode(binary) do
+          {:ok, %{"networks" => networks}} -> networks
+          {:error, _} -> []
+        end
+      {:error, _} -> []
+    end
+
+    {:reply, networks, state}
+  end
+
+  def handle_call(:get_wifi_networks, _from, state) do
+    wifi_networks = get_wifi_networks(state)
+    {:reply, wifi_networks, state}
+  end
+
+  def handle_call(:get_ap_ifname, _from, %State{ap_ifname: ap_ifname} = state) do
+    {:reply, ap_ifname, state}
+  end
+
+  def handle_call(:get_ifname, _from, %State{ifname: ifname} = state) do
+    {:reply, ifname, state}
+  end
+
   @impl GenServer
-  def handle_cast({:start_cams_ap, _value}, %State{backend: backend, backend_state: backend_state} = state) do
+  def handle_cast({:start_cams_ap, ap_on}, %State{backend: backend, backend_state: backend_state} = state) do
+    mode_label = if ap_on == :server_only, do: "server only (no AP)", else: "AP mode"
+    Logger.info("BACKEND_SERVER: Starting wizard #{mode_label} - Current backend state: #{inspect(backend_state.state)}")
 
-    Logger.info("BACKEND_SERVER: Starting AP mode - Current backend state: #{inspect(backend_state.state)}")
+    Callbacks.review_hw_get_lock_type()
+    Callbacks.review_hw_get_profile()
+    Callbacks.review_hw_get_version()
+    Callbacks.review_hw_get_state_comm()
+    Callbacks.review_hw_get_init_state()
 
-    In2Firmware.Services.Operations.ReviewHW.get_lock_type()
-    In2Firmware.Services.Operations.ReviewHW.get_profile()
-    In2Firmware.Services.Operations.ReviewHW.get_version()
-    In2Firmware.Services.Operations.ReviewHW.get_state_comm()
-    In2Firmware.Services.Operations.ReviewHW.get_init_state()
-
-    # Reset backend state to allow new configurations when entering AP mode
+    # Reset backend state to allow new configurations when entering wizard
     new_backend_state = backend.reset(backend_state)
-    Logger.info("BACKEND_SERVER: Backend state reset to: #{inspect(new_backend_state.state)} for new AP mode session")
+    Logger.info("BACKEND_SERVER: Backend state reset to: #{inspect(new_backend_state.state)} for new wizard session")
 
     {:noreply, %{state | backend_state: new_backend_state}}
   end
@@ -683,7 +713,7 @@ defmodule VintageNetWizard.BackendServer do
     #  )
     #end
 
-    In2Firmware.Services.Operations.re_init_http()
+    Callbacks.operations_re_init_http()
 
     {:noreply, state}
   end
@@ -701,8 +731,8 @@ defmodule VintageNetWizard.BackendServer do
 
     #In2Firmware.Services.Operations.default_init_cameras()
 
-    In2Firmware.Services.Operations.re_stop_http()
-    In2Firmware.Services.Operations.re_stop_tcp()
+    Callbacks.operations_re_stop_http()
+    Callbacks.operations_re_stop_tcp()
 
     {:noreply,  state}
   end
@@ -769,7 +799,7 @@ defmodule VintageNetWizard.BackendServer do
   @impl GenServer
   def handle_cast({:change_lock, value}, state) do
 
-    In2Firmware.Services.Operations.ReviewHW.change_lock(value)
+    Callbacks.review_hw_change_lock(value)
 
     {:noreply, state}
   end
@@ -788,7 +818,7 @@ defmodule VintageNetWizard.BackendServer do
   def handle_cast({:save_lock, value}, state) do
 
     if state.lock_type["lock_type"] != value do
-      In2Firmware.Services.Operations.Utils.set_lock_type(value)
+      Callbacks.utils_set_lock_type(value)
     end
 
     {:noreply, state}
@@ -800,7 +830,7 @@ defmodule VintageNetWizard.BackendServer do
     if apn != "" do
       File.write("/root/apn.txt", apn, [:write])
 
-      In2Firmware.check_cellular_connection(In2Firmware.target())
+      Callbacks.firmware_check_cellular_connection()
     end
 
     {:noreply, state}
@@ -826,7 +856,7 @@ defmodule VintageNetWizard.BackendServer do
         # Save credentials to secret file
         save_ap_credentials(random_ssid, random_password)
       else
-        In2Firmware.check_sharing_connection("")
+        Callbacks.firmware_check_sharing_connection("")
       end
       state
     else
@@ -835,7 +865,7 @@ defmodule VintageNetWizard.BackendServer do
         case result do
           {:ok, interface} ->
             File.write("/root/internet.txt", "", [:write])
-            In2Firmware.check_sharing_connection(interface)
+            Callbacks.firmware_check_sharing_connection(interface)
             ap_credentials = get_ap_credentials()
             if ap_credentials.ssid != "" and ap_credentials.password != "" do
               # Modify state directly
@@ -845,7 +875,7 @@ defmodule VintageNetWizard.BackendServer do
             end
           {:error, _posix} ->
             File.write("/root/internet.txt", "", [:write])
-            In2Firmware.check_sharing_connection("")
+            Callbacks.firmware_check_sharing_connection("")
             ap_credentials = get_ap_credentials()
             if ap_credentials.ssid != "" and ap_credentials.password != "" do
               # Modify state directly
@@ -856,7 +886,7 @@ defmodule VintageNetWizard.BackendServer do
         end
       else
         File.write("/root/internet.txt", "", [:write])
-        In2Firmware.check_sharing_connection("")
+        Callbacks.firmware_check_sharing_connection("")
         ap_credentials = get_ap_credentials()
         if ap_credentials.ssid != "" and ap_credentials.password != "" do
           # Modify state directly
@@ -882,7 +912,7 @@ defmodule VintageNetWizard.BackendServer do
     case result do
       {:ok, binary} -> if binary != "" do
         servers = String.split(binary, ",")
-        NervesTime.set_ntp_servers(servers)
+        Callbacks.firmware_set_ntp_servers(servers)
       end
       {:error, _posix} -> ""
     end
@@ -894,7 +924,7 @@ defmodule VintageNetWizard.BackendServer do
   @impl GenServer
   def handle_cast({:change_profile, profile}, state) do
 
-    In2Firmware.Services.Operations.ReviewHW.set_profile(profile)
+    Callbacks.review_hw_set_profile(profile)
 
     {:noreply, state}
   end
@@ -919,17 +949,22 @@ defmodule VintageNetWizard.BackendServer do
   end
 
   @impl GenServer
-  def handle_call(:get_wifi_networks_with_passwords, _from, state) do
-    networks = case File.read("/root/.psk_wifi.json") do
-      {:ok, binary} ->
-        case Jason.decode(binary) do
-          {:ok, %{"networks" => networks}} -> networks
-          {:error, _} -> []
+  def handle_cast(:force_scan, state) do
+    Logger.info("BACKEND_SERVER: Force scanning for access points")
+
+    case VintageNet.scan(state.ifname) do
+      :ok ->
+        Logger.info("BACKEND_SERVER: Force scan successful")
+      {:error, reason} ->
+        Logger.warning("BACKEND_SERVER: Force scan failed: #{inspect(reason)}")
+        Process.sleep(1000)
+        case VintageNet.scan(state.ifname) do
+          :ok -> Logger.info("BACKEND_SERVER: Force scan successful on retry")
+          {:error, retry_reason} -> Logger.error("BACKEND_SERVER: Force scan failed after retry: #{inspect(retry_reason)}")
         end
-      {:error, _} -> []
     end
 
-    {:reply, networks, state}
+    {:noreply, state}
   end
 
   @impl GenServer
@@ -1136,51 +1171,35 @@ defmodule VintageNetWizard.BackendServer do
 
   def get_cameras() do
     device_ip = Application.get_env(:vintage_net_wizard, :dns_name, "setup.firmware.intuitivo.com")
+    statuses = Callbacks.operations_get_cameras_status()
 
-    [
-       #%{
-       #  id: "cam0",
-       #  name: "Upper Central Camera",
-       #  status: "online",
-       #  streamUrl: "http://#{device_ip}:11000"
-       #},
-       #%{
-       #  id: "cam1",
-       #  name: "Upper Lateral Camera",
-       #  status: "online",
-       #  streamUrl: "http://#{device_ip}:11001"
-       #},
-       #%{
-       #  id: "cam2",
-       #  name: "Lateral Retractable Camera",
-       #  status: "online",
-       #  streamUrl: "http://#{device_ip}:11002"
-       #}
-
-      %{
-        id: "cam0",
-        name: "Upper Central Camera",
-        status: "online",
-        host: device_ip,
-        port: 11000
-      },
-      %{
-        id: "cam1",
-        name: "Upper Lateral Camera",
-        status: "online",
-        host: device_ip,
-        port: 11001
-      },
-      %{
-        id: "cam2",
-        name: "Lateral Retractable Camera",
-        status: "online",
-        host: device_ip,
-        port: 11002
-      }
-
+    cameras = [
+      %{id: "cam0", name: "Upper Central Camera", host: device_ip, port: 11000, index: 0},
+      %{id: "cam1", name: "Upper Lateral Camera", host: device_ip, port: 11001, index: 1},
+      %{id: "cam2", name: "Lateral Retractable Camera", host: device_ip, port: 11002, index: 2}
     ]
+
+    Enum.map(cameras, fn cam ->
+      status = camera_status_label(statuses, cam.index)
+      cam |> Map.put(:status, status) |> Map.delete(:index)
+    end)
   end
+
+  defp camera_status_label(nil, _index), do: "unknown"
+  defp camera_status_label(statuses, index) when is_map(statuses) do
+    # Support both integer and string keys; use fetch so false (offline) is not treated as missing
+    status =
+      case Map.fetch(statuses, index) do
+        {:ok, v} -> v
+        :error -> Map.get(statuses, to_string(index))
+      end
+    case status do
+      true -> "online"
+      false -> "offline"
+      _ -> "unknown"
+    end
+  end
+  defp camera_status_label(_statuses, _index), do: "unknown"
 
   def configuration_status_details(:not_configured), do: "No network configuration present"
   def configuration_status_details(:good), do: "Network configured and connected"
@@ -1194,7 +1213,7 @@ defmodule VintageNetWizard.BackendServer do
 
   # Generates a secure random password with specified minimum length
   # including uppercase, lowercase, numbers and special characters
-  defp random_password(min_length) do
+  defp random_password(_min_length) do
     # Ensure we have at least one of each character type
     upper = random_string(4)
     lower = String.downcase(random_string(4))
@@ -1294,37 +1313,5 @@ defmodule VintageNetWizard.BackendServer do
        apn: result.apn,
        ntp: result.ntps
      }}
-  end
-
-  @impl GenServer
-  def handle_call(:get_wifi_networks, _from, state) do
-    wifi_networks = get_wifi_networks(state)
-    {:reply, wifi_networks, state}
-  end
-
-  @impl GenServer
-  def handle_call(:get_ap_ifname, _from, %State{ap_ifname: ap_ifname} = state) do
-    {:reply, ap_ifname, state}
-  end
-
-  @impl GenServer
-  def handle_cast(:force_scan, %State{backend: backend, backend_state: backend_state} = state) do
-    Logger.info("BACKEND_SERVER: Force scanning for access points")
-
-    # Force a scan even if it fails
-    case VintageNet.scan(state.ifname) do
-      :ok ->
-        Logger.info("BACKEND_SERVER: Force scan successful")
-      {:error, reason} ->
-        Logger.warn("BACKEND_SERVER: Force scan failed: #{inspect(reason)}")
-        # Try one more time with a delay
-        Process.sleep(1000)
-        case VintageNet.scan(state.ifname) do
-          :ok -> Logger.info("BACKEND_SERVER: Force scan successful on retry")
-          {:error, retry_reason} -> Logger.error("BACKEND_SERVER: Force scan failed after retry: #{inspect(retry_reason)}")
-        end
-    end
-
-    {:noreply, state}
   end
 end

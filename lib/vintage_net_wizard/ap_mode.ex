@@ -29,7 +29,7 @@ defmodule VintageNetWizard.APMode do
         Logger.info("AP mode configured successfully")
         :ok
       {:error, reason} ->
-        Logger.warn("AP mode configuration failed, retrying: #{inspect(reason)}")
+        Logger.warning("AP mode configuration failed, retrying: #{inspect(reason)}")
         Process.sleep(2000)
         case VintageNet.configure(ifname, config, persist: false) do
           :ok -> 

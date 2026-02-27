@@ -6,10 +6,9 @@ defmodule VintageNetWizard.Web.ApiV1 do
 
   alias Plug.Conn
   alias VintageNetWizard.BackendServer
+  alias VintageNetWizard.Callbacks
   alias VintageNetWizard.Web.Endpoint
   alias VintageNetWizard.WiFiConfiguration
-  alias In2Firmware.Services.Operations
-  alias In2Firmware.Services.Lock
 
   plug(Plug.Parsers, parsers: [:json], json_decoder: Jason)
   plug(:match)
@@ -98,8 +97,7 @@ defmodule VintageNetWizard.Web.ApiV1 do
 
   put "/clear" do
 
-    #Lock.open_lock("operator")
-    Operations.init_trx_op()
+    Callbacks.operations_init_trx_op()
 
     send_json(conn, 204, "")
   end
@@ -110,7 +108,7 @@ defmodule VintageNetWizard.Web.ApiV1 do
     |> Map.get("value", false)
 
     Logger.info("Nama change #{inspect(result)}")
-    Lock.activate_nama(result)
+    Callbacks.lock_activate_nama(result)
 
     send_json(conn, 204, "")
   end

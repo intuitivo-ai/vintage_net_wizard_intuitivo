@@ -4,11 +4,9 @@ defmodule VintageNetWizard.Web.Router do
   @combined_pattern ~r/^((\d{1,3}\.){3}\d{1,3}|[a-zA-Z0-9.-]+)(,((\d{1,3}\.){3}\d{1,3}|[a-zA-Z0-9.-]+))*$/
   @ip_regex ~r/^(25[0-5]|2[0-4][0-9]|1[0-9]{2}|[1-9]?[0-9])\.(25[0-5]|2[0-4][0-9]|1[0-9]{2}|[1-9]?[0-9])\.(25[0-5]|2[0-4][0-9]|1[0-9]{2}|[1-9]?[0-9])\.(25[0-5]|2[0-4][0-9]|1[0-9]{2}|[1-9]?[0-9])$/
 
-  use Plug.Router
+  use Plug.Router, copy_opts_to_assign: :opts
   use Plug.Debugger, otp_app: :vintage_net_wizard
   require Logger
-
-  #plug :auth
 
   alias VintageNetWizard.{
     BackendServer,
@@ -23,7 +21,10 @@ defmodule VintageNetWizard.Web.Router do
   # it just polling this endpoint but still be inactive.
   plug(VintageNetWizard.Plugs.Activity, excluding: ["/api/v1/access_points"])
   plug(:match)
-  plug(:dispatch, builder_opts())
+  plug(:dispatch)
+
+  # Opts from endpoint (title, ui, etc.) are in conn.assigns.opts when using copy_opts_to_assign.
+  defp route_opts(conn), do: conn.assigns[:opts] || []
 
   defp validate_and_split(input) when is_binary(input) do
     if Regex.match?(@combined_pattern, input) do
@@ -37,30 +38,13 @@ defmodule VintageNetWizard.Web.Router do
     Regex.match?(@ip_regex, ip)
   end
 
-  ## Plug Auth usgin Plug.BasicAuth custom
-  defp auth(conn, _opts) do
-    with {user, pass} <- Plug.BasicAuth.parse_basic_auth(conn) do
-      ##process to authorize
-      username = Application.get_env(:in2_firmware, :username)
-      password = Application.get_env(:in2_firmware, :password)
-      #Logger.info("Authorizing #{user} with #{pass}")
-      if username == user and password == pass do
-        assign(conn, :current_user, :admin)
-      else
-        conn |> Plug.BasicAuth.request_basic_auth() |> halt()
-      end
-    else
-      _ -> conn |> Plug.BasicAuth.request_basic_auth() |> halt()
-    end
-  end
-
   get "/" do
     case BackendServer.configurations() do
       [] ->
         redirect(conn, "/networks")
 
       configs ->
-        render_page(conn, "index.html", opts,
+        render_page(conn, "index.html", route_opts(conn),
           configs: configs,
           configuration_status: configuration_status_details(),
           format_security: &WiFiConfiguration.security_name/1,
@@ -82,7 +66,7 @@ defmodule VintageNetWizard.Web.Router do
         {:ok, key_mgmt} = WiFiConfiguration.key_mgmt_from_string(conn.body_params["key_mgmt"])
         error_message = password_error_message(error)
 
-        render_password_page(conn, key_mgmt, opts,
+        render_password_page(conn, key_mgmt, route_opts(conn),
           ssid: ssid,
           error: error_message,
           password: password,
@@ -104,7 +88,7 @@ defmodule VintageNetWizard.Web.Router do
           get_key_mgmt_from_ap(result)
       end
 
-    render_password_page(conn, key_mgmt, opts, ssid: ssid, password: "", error: "", user: "")
+    render_password_page(conn, key_mgmt, route_opts(conn), ssid: ssid, password: "", error: "", user: "")
   end
 
   get "/redirect" do
@@ -124,19 +108,19 @@ defmodule VintageNetWizard.Web.Router do
   end
 
   get "/hotspot-detect.html" do
-    render_page(conn, "apple_captive_portal.html", opts, dns_name: get_redirect_dnsname(conn))
+    render_page(conn, "apple_captive_portal.html", route_opts(conn), dns_name: get_redirect_dnsname(conn))
   end
 
   get "/library/test/success.html" do
-    render_page(conn, "apple_captive_portal.html", opts, dns_name: get_redirect_dnsname(conn))
+    render_page(conn, "apple_captive_portal.html", route_opts(conn), dns_name: get_redirect_dnsname(conn))
   end
 
   get "/networks" do
-    render_page(conn, "networks.html", opts, configuration_status: configuration_status_details(), error_ntp: "", method: "dhcp", error_address: "", error_netmask: "", error_gateway: "", error_name_servers: "")
+    render_page(conn, "networks.html", route_opts(conn), configuration_status: configuration_status_details(), error_ntp: "", method: "dhcp", error_address: "", error_netmask: "", error_gateway: "", error_name_servers: "")
   end
 
   get "/networks/new" do
-    render_page(conn, "network_new.html", opts)
+    render_page(conn, "network_new.html", route_opts(conn))
   end
 
   post "/networks/new" do
@@ -151,7 +135,7 @@ defmodule VintageNetWizard.Web.Router do
 
       key_mgmt ->
         key_mgmt = String.to_existing_atom(key_mgmt)
-        render_password_page(conn, key_mgmt, opts, ssid: ssid, password: "", error: "", user: "")
+        render_password_page(conn, key_mgmt, route_opts(conn), ssid: ssid, password: "", error: "", user: "")
     end
   end
 
@@ -169,7 +153,7 @@ defmodule VintageNetWizard.Web.Router do
     case validate_and_split(servesntp) do
       {:ok, result} -> BackendServer.save_ntp(result)
                       redirect(conn, "/")
-      {:error, message} -> render_page(conn, "networks.html", opts, configuration_status: configuration_status_details(), error_ntp: message, method: "dhcp", error_address: "", error_netmask: "", error_gateway: "", error_name_servers: "")
+      {:error, message} -> render_page(conn, "networks.html", route_opts(conn), configuration_status: configuration_status_details(), error_ntp: message, method: "dhcp", error_address: "", error_netmask: "", error_gateway: "", error_name_servers: "")
     end
   end
 
@@ -227,7 +211,7 @@ defmodule VintageNetWizard.Web.Router do
 
           redirect(conn, "/")
         else
-          render_page(conn, "networks.html", opts, configuration_status: configuration_status_details(), error_ntp: "", method: method, error_address: error_address, error_netmask: error_netmask, error_gateway: error_gateway, error_name_servers: error_name_servers)
+          render_page(conn, "networks.html", route_opts(conn), configuration_status: configuration_status_details(), error_ntp: "", method: method, error_address: error_address, error_netmask: error_netmask, error_gateway: error_gateway, error_name_servers: error_name_servers)
         end
     end
   end
@@ -251,7 +235,7 @@ defmodule VintageNetWizard.Web.Router do
   end
 
   get "/apply" do
-    render_page(conn, "apply.html", opts, ssid: VintageNetWizard.APMode.ssid())
+    render_page(conn, "apply.html", route_opts(conn), ssid: VintageNetWizard.APMode.ssid())
   end
 
   get "/complete" do
@@ -265,7 +249,7 @@ defmodule VintageNetWizard.Web.Router do
         Endpoint.stop_server(:shutdown)
       end)
 
-    render_page(conn, "complete.html", opts)
+    render_page(conn, "complete.html", route_opts(conn))
   end
 
   forward("/api/v1", to: VintageNetWizard.Web.ApiV1)
