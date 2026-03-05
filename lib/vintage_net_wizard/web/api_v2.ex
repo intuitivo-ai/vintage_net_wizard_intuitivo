@@ -13,6 +13,9 @@ defmodule VintageNetWizard.Web.ApiV2 do
   ### GET /networks/scan
     Scan for available WiFi networks.
 
+  ### GET /wwan/status
+    Get VintageNetQMI (wwan0) cellular modem status: IP, APN, ICCID, IMEI, signal_dbm, connection, present.
+
   ### GET /configuration/status
     Get detailed configuration status.
 
@@ -156,6 +159,13 @@ defmodule VintageNetWizard.Web.ApiV2 do
       timestamp: DateTime.utc_now() |> DateTime.to_iso8601()
     }
 
+    send_json(conn, 200, response)
+  end
+
+  get "/wwan/status" do
+    Logger.info("API_V2_GET_WWAN_STATUS_REQUEST")
+
+    response = get_wwan_status()
     send_json(conn, 200, response)
   end
 
@@ -730,6 +740,71 @@ defmodule VintageNetWizard.Web.ApiV2 do
     conn
     |> merge_resp_headers(@cors_headers)
     |> send_resp(204, "")
+  end
+
+  # Build wwan0 (VintageNetQMI) status from VintageNet.get_by_prefix.
+  # Handles empty result (no wwan0) and missing keys: defaults are used (present: false, rest: nil).
+  defp get_wwan_status do
+    prefix = ["interface", "wwan0"]
+    data = VintageNet.get_by_prefix(prefix)
+    map = data |> Enum.into(%{}, fn {k, v} -> {k, v} end)
+
+    present = get_wwan_value(map, prefix ++ ["present"], false)
+    ip = get_wwan_ip(map, prefix)
+    apn = get_wwan_value(map, prefix ++ ["mobile", "apn"], nil)
+    iccid = get_wwan_value(map, prefix ++ ["mobile", "iccid"], nil)
+    imei = get_wwan_value(map, prefix ++ ["mobile", "imei"], nil)
+    signal_dbm = get_wwan_value(map, prefix ++ ["mobile", "signal_dbm"], nil)
+    connection = get_wwan_value(map, prefix ++ ["connection"], nil)
+
+    %{
+      present: present,
+      ip: ip,
+      apn: apn,
+      iccid: iccid,
+      imei: imei,
+      signal_dbm: signal_dbm,
+      connection: connection && to_string(connection),
+      timestamp: DateTime.utc_now() |> DateTime.to_iso8601()
+    }
+  end
+
+  # Returns value for key or default when key is missing or value is nil (empty/partial get_by_prefix).
+  defp get_wwan_value(map, key, default) do
+    case Map.get(map, key) do
+      nil -> default
+      val -> val
+    end
+  end
+
+  # Extract IPv4 address string from addresses or dhcp_options
+  defp get_wwan_ip(map, prefix) do
+    case Map.get(map, prefix ++ ["addresses"]) do
+      addrs when is_list(addrs) ->
+        addrs
+        |> Enum.find(&(match?(%{family: :inet}, &1)))
+        |> case do
+          %{address: tuple} when is_tuple(tuple) and tuple_size(tuple) == 4 ->
+            tuple_to_ip_string(tuple)
+          _ ->
+            dhcp_ip(map, prefix)
+        end
+      _ ->
+        dhcp_ip(map, prefix)
+    end
+  end
+
+  defp dhcp_ip(map, prefix) do
+    case Map.get(map, prefix ++ ["dhcp_options"]) do
+      %{ip: tuple} when is_tuple(tuple) and tuple_size(tuple) == 4 ->
+        tuple_to_ip_string(tuple)
+      _ ->
+        nil
+    end
+  end
+
+  defp tuple_to_ip_string({a, b, c, d}) do
+    "#{a}.#{b}.#{c}.#{d}"
   end
 
   defp assign_network_priorities(networks) do

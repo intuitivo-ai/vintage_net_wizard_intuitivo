@@ -57,6 +57,32 @@ Response:
       ]
     }
 
+### Get WWAN (VintageNetQMI) Status
+`GET /wwan/status`
+
+Returns the status of the cellular modem interface (wwan0) when using VintageNetQMI. If the interface is not present, `present` will be `false` and other fields may be `null`.
+
+Response:
+    {
+      "present": true,
+      "ip": "10.136.104.99",
+      "apn": "data.mono",
+      "iccid": "89999232003250140812",
+      "imei": "862636056396698",
+      "signal_dbm": -56,
+      "connection": "internet",
+      "timestamp": "2024-03-20T15:30:00Z"
+    }
+
+Fields:
+- `present` (boolean): Whether the wwan0 interface exists and is available.
+- `ip` (string | null): IPv4 address assigned to the modem, if any.
+- `apn` (string | null): Access Point Name currently in use.
+- `iccid` (string | null): SIM card ICCID.
+- `imei` (string | null): Modem IMEI.
+- `signal_dbm` (integer | null): Signal strength in dBm.
+- `connection` (string | null): Connection state (e.g. `"internet"`, `"disconnected"`).
+
 ### Get Configuration Status
 `GET /configuration/status`
 
