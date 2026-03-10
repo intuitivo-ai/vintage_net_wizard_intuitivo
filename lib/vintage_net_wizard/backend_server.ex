@@ -405,10 +405,12 @@ defmodule VintageNetWizard.BackendServer do
         _from,
         %State{backend: backend, backend_state: backend_state} = state
       ) do
-    access_points = backend.access_points(backend_state)
-    Logger.info("BACKEND_SERVER: Access points requested - Found #{length(access_points)} networks")
+    access_points_raw = backend.access_points(backend_state)
+    access_points = if is_map(access_points_raw), do: Map.values(access_points_raw), else: access_points_raw
+    count = length(access_points)
+    Logger.info("BACKEND_SERVER: Access points requested - Found #{count} networks")
 
-    if length(access_points) == 0 do
+    if count == 0 do
       Logger.warning("BACKEND_SERVER: No access points found - this may indicate scanning issues with hardware")
       Logger.info("BACKEND_SERVER: Triggering additional scan attempt")
       # Force a scan if no access points are found
