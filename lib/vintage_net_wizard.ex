@@ -3,7 +3,9 @@ defmodule VintageNetWizard do
   Documentation for VintageNetWizard.
   """
 
-  alias VintageNetWizard.{APMode, BackendServer, Web.Endpoint}
+  alias VintageNetWizard.{APMode, APTimer, BackendServer, Web.Endpoint}
+
+  require Logger
 
   @type stop_reason() :: :shutdown | :timeout
 
@@ -47,7 +49,10 @@ defmodule VintageNetWizard do
       _ ->
         APMode.into_ap_mode(ap_ifname)
         |> case do
-          :ok -> start_services(opts, ap_on)
+          :ok ->
+            result = start_services(opts, ap_on)
+            start_ap_timer(ap_ifname)
+            result
           error -> error
         end
     end
@@ -86,6 +91,7 @@ defmodule VintageNetWizard do
   """
   @spec stop_wizard(stop_reason()) :: :ok | {:error, String.t()}
   def stop_wizard(stop_reason \\ :shutdown) do
+    APTimer.cancel()
 
     BackendServer.stop_cameras()
 
@@ -133,4 +139,8 @@ defmodule VintageNetWizard do
     end
   end
 
+  defp start_ap_timer(ap_ifname) do
+    ap_timeout = Application.get_env(:vintage_net_wizard, :ap_timeout, 15)
+    APTimer.start_link({ap_timeout, ap_ifname})
+  end
 end
