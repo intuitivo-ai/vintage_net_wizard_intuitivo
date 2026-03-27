@@ -74,6 +74,7 @@ defmodule VintageNetWizard.Web.Endpoint do
     _ =
       get_children()
       |> stop_some_children()
+      |> handle_ap_timer()
       |> handle_watchdog(stop_reason)
       |> handle_callbacks()
 
@@ -92,6 +93,13 @@ defmodule VintageNetWizard.Web.Endpoint do
 
   # if the reason for stopping is a timeout then we don't try to stop
   # the WatchDog as it will stop itself.
+  defp handle_ap_timer(children) do
+    if children[APTimer] do
+      _ = DynamicSupervisor.terminate_child(__MODULE__, children[APTimer])
+    end
+    children
+  end
+
   defp handle_watchdog(children, :timeout), do: children
 
   defp handle_watchdog(children, _other) do

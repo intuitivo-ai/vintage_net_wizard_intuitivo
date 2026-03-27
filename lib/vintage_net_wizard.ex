@@ -5,8 +5,6 @@ defmodule VintageNetWizard do
 
   alias VintageNetWizard.{APMode, APTimer, BackendServer, Web.Endpoint}
 
-  require Logger
-
   @type stop_reason() :: :shutdown | :timeout
 
   @doc """
@@ -91,8 +89,6 @@ defmodule VintageNetWizard do
   """
   @spec stop_wizard(stop_reason()) :: :ok | {:error, String.t()}
   def stop_wizard(stop_reason \\ :shutdown) do
-    APTimer.cancel()
-
     BackendServer.stop_cameras()
 
     :ok = BackendServer.complete()
