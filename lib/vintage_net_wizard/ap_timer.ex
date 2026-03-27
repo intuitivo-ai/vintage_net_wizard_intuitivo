@@ -69,15 +69,24 @@ defmodule VintageNetWizard.APTimer do
   def handle_info(:ap_timeout, %{ap_ifname: ap_ifname} = state) do
     Logger.info("[APTimer] AP timeout reached — stopping AP mode on #{ap_ifname}")
 
-    # Read the PERSISTED config (pre-AP WiFi networks), not the runtime AP config
-    config = VintageNet.get_configuration(ap_ifname)
+    # Read the PERSISTED config from disk (the pre-AP WiFi networks).
+    # AP mode is configured with persist: false, so disk still has the real WiFi config.
+    persistence = Application.get_env(:vintage_net, :persistence, VintageNet.Persistence.FlatFile)
 
     networks =
-      case get_in(config, [:vintage_net_wifi, :networks]) do
-        nil -> []
-        nets -> Enum.reject(nets, &(Map.get(&1, :mode) == :ap))
+      case persistence.load(ap_ifname) do
+        {:ok, config} ->
+          case get_in(config, [:vintage_net_wifi, :networks]) do
+            nil -> []
+            nets -> Enum.reject(nets, &(Map.get(&1, :mode) == :ap))
+          end
+
+        _ ->
+          Logger.warning("[APTimer] No persisted config for #{ap_ifname}, restoring with empty networks")
+          []
       end
 
+    Logger.info("[APTimer] Restoring #{length(networks)} WiFi network(s)")
     VintageNetWizard.APMode.exit_ap_mode(ap_ifname, networks)
     {:stop, :normal, state}
   end
