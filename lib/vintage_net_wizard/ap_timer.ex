@@ -31,15 +31,6 @@ defmodule VintageNetWizard.APTimer do
     end
   end
 
-  @doc "Cancel the timer (AP was already stopped by other means)"
-  def cancel do
-    if pid = Process.whereis(__MODULE__) do
-      DynamicSupervisor.terminate_child(VintageNetWizard.Web.Endpoint, pid)
-    end
-
-    :ok
-  end
-
   @impl GenServer
   def init({:infinity, _ap_ifname}) do
     Logger.info("[APTimer] AP timeout disabled (infinity)")

@@ -48,9 +48,12 @@ defmodule VintageNetWizard do
         APMode.into_ap_mode(ap_ifname)
         |> case do
           :ok ->
-            result = start_services(opts, ap_on)
-            start_ap_timer(ap_ifname)
-            result
+            case start_services(opts, ap_on) do
+              :ok ->
+                start_ap_timer(ap_ifname)
+                :ok
+              error -> error
+            end
           error -> error
         end
     end
