@@ -45,16 +45,16 @@ defmodule VintageNetWizard do
       # Start only the wizard server (web/API), without putting the interface in AP mode.
       :server_only -> start_services(opts, ap_on)
       _ ->
-        APMode.into_ap_mode(ap_ifname)
-        |> case do
+        require Logger
+        case APMode.into_ap_mode(ap_ifname) do
           :ok ->
-            case start_services(opts, ap_on) do
-              :ok ->
-                start_ap_timer(ap_ifname)
-                :ok
-              error -> error
-            end
-          error -> error
+            result = start_services(opts, ap_on)
+            Logger.info("[VintageNetWizard] AP up, services=#{inspect(result)}, starting timer for #{ap_ifname}")
+            start_ap_timer(ap_ifname)
+            result
+          error ->
+            Logger.error("[VintageNetWizard] into_ap_mode failed: #{inspect(error)}")
+            error
         end
     end
   end
