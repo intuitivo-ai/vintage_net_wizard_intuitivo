@@ -3,7 +3,7 @@ defmodule VintageNetWizard do
   Documentation for VintageNetWizard.
   """
 
-  alias VintageNetWizard.{APMode, BackendServer, Web.Endpoint}
+  alias VintageNetWizard.{APMode, APTimer, BackendServer, Web.Endpoint}
 
   @type stop_reason() :: :shutdown | :timeout
 
@@ -45,10 +45,16 @@ defmodule VintageNetWizard do
       # Start only the wizard server (web/API), without putting the interface in AP mode.
       :server_only -> start_services(opts, ap_on)
       _ ->
-        APMode.into_ap_mode(ap_ifname)
-        |> case do
-          :ok -> start_services(opts, ap_on)
-          error -> error
+        require Logger
+        case APMode.into_ap_mode(ap_ifname) do
+          :ok ->
+            result = start_services(opts, ap_on)
+            Logger.info("[VintageNetWizard] AP up, services=#{inspect(result)}, starting timer for #{ap_ifname}")
+            start_ap_timer(ap_ifname)
+            result
+          error ->
+            Logger.error("[VintageNetWizard] into_ap_mode failed: #{inspect(error)}")
+            error
         end
     end
   end
@@ -86,7 +92,6 @@ defmodule VintageNetWizard do
   """
   @spec stop_wizard(stop_reason()) :: :ok | {:error, String.t()}
   def stop_wizard(stop_reason \\ :shutdown) do
-
     BackendServer.stop_cameras()
 
     :ok = BackendServer.complete()
@@ -133,4 +138,14 @@ defmodule VintageNetWizard do
     end
   end
 
+  defp start_ap_timer(ap_ifname) do
+    ap_timeout = Application.get_env(:vintage_net_wizard, :ap_timeout, 15)
+
+    case DynamicSupervisor.start_child(Endpoint, {APTimer, {ap_timeout, ap_ifname}}) do
+      {:ok, _pid} -> :ok
+      {:error, reason} ->
+        require Logger
+        Logger.warning("[VintageNetWizard] Failed to start AP timer: #{inspect(reason)}")
+    end
+  end
 end

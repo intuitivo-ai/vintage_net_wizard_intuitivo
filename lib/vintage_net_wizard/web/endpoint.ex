@@ -5,6 +5,7 @@ defmodule VintageNetWizard.Web.Endpoint do
   use DynamicSupervisor
 
   alias VintageNetWizard.{
+    APTimer,
     Backend,
     BackendServer,
     Callbacks,
@@ -73,6 +74,7 @@ defmodule VintageNetWizard.Web.Endpoint do
     _ =
       get_children()
       |> stop_some_children()
+      |> handle_ap_timer()
       |> handle_watchdog(stop_reason)
       |> handle_callbacks()
 
@@ -81,7 +83,7 @@ defmodule VintageNetWizard.Web.Endpoint do
 
   defp stop_some_children(children) do
     children
-    |> Map.drop([WatchDog, Callbacks])
+    |> Map.drop([WatchDog, APTimer, Callbacks])
     |> Enum.each(fn {_mod, child} ->
       :ok = DynamicSupervisor.terminate_child(__MODULE__, child)
     end)
@@ -91,6 +93,13 @@ defmodule VintageNetWizard.Web.Endpoint do
 
   # if the reason for stopping is a timeout then we don't try to stop
   # the WatchDog as it will stop itself.
+  defp handle_ap_timer(children) do
+    if children[APTimer] do
+      _ = DynamicSupervisor.terminate_child(__MODULE__, children[APTimer])
+    end
+    children
+  end
+
   defp handle_watchdog(children, :timeout), do: children
 
   defp handle_watchdog(children, _other) do
@@ -115,7 +124,7 @@ defmodule VintageNetWizard.Web.Endpoint do
 
   @impl DynamicSupervisor
   def init(_) do
-    DynamicSupervisor.init(strategy: :one_for_one, max_children: 4)
+    DynamicSupervisor.init(strategy: :one_for_one, max_children: 5)
   end
 
   defp dispatch(opts) do

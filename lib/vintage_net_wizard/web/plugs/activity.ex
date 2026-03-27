@@ -2,7 +2,7 @@ defmodule VintageNetWizard.Plugs.Activity do
   @moduledoc false
 
   alias Plug.Conn
-  alias VintageNetWizard.WatchDog
+  alias VintageNetWizard.{APTimer, WatchDog}
 
   @typedoc """
   Options for the plug:
@@ -26,6 +26,7 @@ defmodule VintageNetWizard.Plugs.Activity do
       conn
     else
       :ok = WatchDog.pet()
+      APTimer.pet()
       conn
     end
   end
