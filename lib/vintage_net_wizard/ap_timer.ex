@@ -24,10 +24,14 @@ defmodule VintageNetWizard.APTimer do
 
   @doc "Reset the AP timer (e.g. on user activity)"
   def pet do
-    if pid = Process.whereis(__MODULE__) do
-      GenServer.call(pid, :pet)
-    else
-      :ok
+    case Process.whereis(__MODULE__) do
+      nil -> :ok
+      pid ->
+        try do
+          GenServer.call(pid, :pet)
+        catch
+          :exit, _ -> :ok
+        end
     end
   end
 
