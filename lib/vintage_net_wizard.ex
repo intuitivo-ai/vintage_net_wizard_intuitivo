@@ -140,6 +140,12 @@ defmodule VintageNetWizard do
 
   defp start_ap_timer(ap_ifname) do
     ap_timeout = Application.get_env(:vintage_net_wizard, :ap_timeout, 15)
-    DynamicSupervisor.start_child(Endpoint, {APTimer, {ap_timeout, ap_ifname}})
+
+    case DynamicSupervisor.start_child(Endpoint, {APTimer, {ap_timeout, ap_ifname}}) do
+      {:ok, _pid} -> :ok
+      {:error, reason} ->
+        require Logger
+        Logger.warning("[VintageNetWizard] Failed to start AP timer: #{inspect(reason)}")
+    end
   end
 end

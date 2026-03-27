@@ -65,16 +65,13 @@ defmodule VintageNetWizard.APTimer do
   def handle_info(:ap_timeout, %{ap_ifname: ap_ifname} = state) do
     Logger.info("[APTimer] AP timeout reached — stopping AP mode on #{ap_ifname}")
 
-    # Restore wlan0 to its previous WiFi config (exit AP, keep server running)
-    config = VintageNet.get(["interface", ap_ifname, "config"])
+    # Read the PERSISTED config (pre-AP WiFi networks), not the runtime AP config
+    config = VintageNet.get_configuration(ap_ifname)
 
     networks =
-      case config do
-        %{vintage_net_wifi: %{networks: networks}} ->
-          Enum.reject(networks, &(Map.get(&1, :mode) == :ap))
-
-        _ ->
-          []
+      case get_in(config, [:vintage_net_wifi, :networks]) do
+        nil -> []
+        nets -> Enum.reject(nets, &(Map.get(&1, :mode) == :ap))
       end
 
     VintageNetWizard.APMode.exit_ap_mode(ap_ifname, networks)
