@@ -141,6 +141,6 @@ defmodule VintageNetWizard do
 
   defp start_ap_timer(ap_ifname) do
     ap_timeout = Application.get_env(:vintage_net_wizard, :ap_timeout, 15)
-    APTimer.start_link({ap_timeout, ap_ifname})
+    DynamicSupervisor.start_child(Endpoint, {APTimer, {ap_timeout, ap_ifname}})
   end
 end

@@ -34,7 +34,7 @@ defmodule VintageNetWizard.APTimer do
   @doc "Cancel the timer (AP was already stopped by other means)"
   def cancel do
     if pid = Process.whereis(__MODULE__) do
-      GenServer.stop(pid, :normal)
+      DynamicSupervisor.terminate_child(VintageNetWizard.Web.Endpoint, pid)
     end
 
     :ok
@@ -59,7 +59,13 @@ defmodule VintageNetWizard.APTimer do
   end
 
   def handle_call(:pet, _from, %{timeout_ms: timeout_ms} = state) do
-    Process.cancel_timer(state.timer_ref)
+    Process.cancel_timer(state.timer_ref, info: false)
+    # Flush any stale :ap_timeout that fired before cancel
+    receive do
+      :ap_timeout -> :ok
+    after
+      0 -> :ok
+    end
     ref = Process.send_after(self(), :ap_timeout, timeout_ms)
     {:reply, :ok, %{state | timer_ref: ref}}
   end
