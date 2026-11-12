@@ -31,6 +31,22 @@ defmodule VintageNetWizard.Web.Endpoint do
           | {:ui, [ui_opt()]}
           | Backend.opt()
 
+  # The wizard is a captive-portal UI and HTTP/1.1 is all it needs, so every
+  # listener refuses HTTP/2 and cowlib's HTTP/2 code (HPACK) stays out of reach
+  # of whoever joins the AP:
+  #
+  #   * clear text: with `protocols: [:http]` cowboy answers the h2c
+  #     prior-knowledge preface with a 501 and ignores `Upgrade: h2c`;
+  #   * TLS: ALPN and NPN offer only "http/1.1" (Plug.Cowboy offers "h2"
+  #     first by default), and cowboy does not upgrade to h2c over TLS.
+  #
+  # Both cowboy behaviours need cowboy >= 2.13 (see mix.exs).
+  @http1_only [protocol_options: [protocols: [:http]]]
+  @tls_http1_only [
+                    alpn_preferred_protocols: ["http/1.1"],
+                    next_protocols_advertised: ["http/1.1"]
+                  ] ++ @http1_only
+
   @doc false
   @spec start_link(any()) :: Supervisor.on_start()
   def start_link(args) do
@@ -157,7 +173,7 @@ defmodule VintageNetWizard.Web.Endpoint do
           Plug.Cowboy.child_spec(
             plug: {RedirectRouter, [scheme: scheme, dns_name: dns_name, port: port]},
             scheme: :http,
-            options: [port: 80]
+            options: [port: 80] ++ @http1_only
           )
 
         DynamicSupervisor.start_child(__MODULE__, redirect_spec)
@@ -168,7 +184,7 @@ defmodule VintageNetWizard.Web.Endpoint do
 
   defp maybe_use_ssl(true = use_ssl, opts) do
     ssl_options = Keyword.get(opts, :ssl)
-    options = [dispatch: dispatch(opts), port: get_port(use_ssl)]
+    options = [dispatch: dispatch(opts), port: get_port(use_ssl)] ++ @tls_http1_only
 
     Plug.Cowboy.child_spec(
       plug: Router,
@@ -181,10 +197,7 @@ defmodule VintageNetWizard.Web.Endpoint do
     Plug.Cowboy.child_spec(
       plug: Router,
       scheme: :http,
-      options: [
-        dispatch: dispatch(opts),
-        port: get_port()
-      ]
+      options: [dispatch: dispatch(opts), port: get_port()] ++ @http1_only
     )
   end
 
