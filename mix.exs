@@ -61,10 +61,15 @@ defmodule VintageNetWizard.MixProject do
     [
       # Dependencies for all targets
       {:plug_cowboy, "~> 2.0"},
+      # Web.Endpoint keeps HTTP/2 off with options that cowboy only honors
+      # since 2.13: older releases ignore `protocols: [:http]` and accept
+      # `Upgrade: h2c`, even over TLS.
+      {:cowboy, "~> 2.13"},
       {:phoenix_html, "~> 2.13 or ~> 3.0 or ~> 4.0"},
       {:jason, "~> 1.0"},
       {:vintage_net, "~> 0.10.0 or ~> 0.11.0 or ~> 0.12.0 or ~> 0.13.0"},
       {:vintage_net_wifi, "~> 0.12.0"},
+      {:mint, "~> 1.6", only: :test},
       {:credo, "~> 1.2", only: :test, runtime: false},
       {:ex_doc, "~> 0.22", only: :docs, runtime: false},
       {:dialyxir, "~> 1.4.1", only: :dev, runtime: false}
